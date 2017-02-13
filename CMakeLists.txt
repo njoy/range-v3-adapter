@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.2 ) 
 
-project( range-v3 VERSION 0.0.1 LANGUAGES CXX )
+project( range-v3-adapter VERSION 0.0.1 LANGUAGES CXX )
 
 if ( NOT GIT_EXECUTABLE )
     find_package( Git )
@@ -24,12 +24,13 @@ execute_process(
 message( STATUS "" )
 message( STATUS "-----------------------------------------------------------" )
 message( STATUS "" )
-message( STATUS "range-v3 Version: 0.0.1" )
+message( STATUS "range-v3-adapter Version: 0.0.1" )
 message( STATUS "Git current branch: ${GIT_BRANCH}" )
 message( STATUS "Git commit hash: ${GIT_HASH}" )
 message( STATUS "" )
 message( STATUS "-----------------------------------------------------------" ) 
 message( STATUS "" ) 
 
-add_library( range-v3 INTERFACE )
+add_library( range-v3-adapter INTERFACE )
+target_include_directories( range-v3-adapter INTERFACE src/include )
 
