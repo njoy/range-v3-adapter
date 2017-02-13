@@ -1,0 +1,11 @@
+{
+"implementation_files": [],
+"target": "include",
+"name": "range-v3",
+"language": "c++",
+"is_external_project": true,
+"unit_tests": {},
+"header_files": [],
+"language_revision": "C++14",
+"version": "0.0.1"
+}
