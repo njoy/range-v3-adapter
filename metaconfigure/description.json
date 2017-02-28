@@ -1,7 +1,7 @@
 {
 "implementation_files": [],
 "target": "include",
-"name": "range-v3",
+"name": "range-v3-adapter",
 "language": "c++",
 "is_external_project": true,
 "unit_tests": {},
