@@ -17,6 +17,7 @@
 #include <functional>
 #include <range/v3/range_fwd.hpp>
 #include <range/v3/action/action.hpp>
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/stable_sort.hpp>
 #include <range/v3/utility/functional.hpp>
 #include <range/v3/utility/iterator_concepts.hpp>
@@ -43,37 +44,23 @@ namespace ranges
                         protect(std::move(proj)))
                 )
             public:
-                struct ConceptImpl
-                {
-                    template<typename Rng, typename C = ordered_less, typename P = ident,
-                        typename I = range_iterator_t<Rng>>
-                    auto requires_(Rng&&, C&& = C{}, P&& = P{}) -> decltype(
-                        concepts::valid_expr(
-                            concepts::model_of<concepts::ForwardRange, Rng>(),
-                            concepts::is_true(Sortable<I, C, P>())
-                        ));
-                };
-
-                template<typename Rng, typename C = ordered_less, typename P = ident>
-                using Concept = concepts::models<ConceptImpl, Rng, C, P>;
-
                 template<typename Rng, typename C = ordered_less, typename P = ident,
-                    CONCEPT_REQUIRES_(Concept<Rng, C, P>())>
+                    CONCEPT_REQUIRES_(sort_fn::Sortable<Rng, C, P>())>
                 Rng operator()(Rng && rng, C pred = C{}, P proj = P{}) const
                 {
                     ranges::stable_sort(rng, std::move(pred), std::move(proj));
-                    return std::forward<Rng>(rng);
+                    return static_cast<Rng&&>(rng);
                 }
 
             #ifndef RANGES_DOXYGEN_INVOKED
                 template<typename Rng, typename C = ordered_less, typename P = ident,
-                    CONCEPT_REQUIRES_(!Concept<Rng, C, P>())>
+                    CONCEPT_REQUIRES_(!sort_fn::Sortable<Rng, C, P>())>
                 void operator()(Rng &&, C && = C{}, P && = P{}) const
                 {
                     CONCEPT_ASSERT_MSG(ForwardRange<Rng>(),
                         "The object on which action::stable_sort operates must be a model of the "
                         "ForwardRange concept.");
-                    using I = range_iterator_t<Rng>;
+                    using I = iterator_t<Rng>;
                     CONCEPT_ASSERT_MSG(IndirectInvocable<P, I>(),
                         "The projection function must accept objects of the iterator's value type, "
                         "reference type, and common reference type.");

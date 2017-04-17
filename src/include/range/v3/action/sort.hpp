@@ -42,28 +42,39 @@ namespace ranges
                     std::bind(sort, std::placeholders::_1, protect(std::move(pred)),
                         protect(std::move(proj)))
                 )
+
+                struct Sortable_
+                {
+                    template<typename Rng, typename C = ordered_less, typename P = ident,
+                        typename I = iterator_t<Rng>>
+                    auto requires_() -> decltype(
+                        concepts::valid_expr(
+                            concepts::model_of<concepts::ForwardRange, Rng>(),
+                            concepts::is_true(ranges::Sortable<I, C, P>())
+                        ));
+                };
+
             public:
                 template<typename Rng, typename C = ordered_less, typename P = ident>
-                using Concept = meta::and_<
-                    ForwardRange<Rng>, Sortable<range_iterator_t<Rng>, C, P>>;
+                using Sortable = concepts::models<Sortable_, Rng, C, P>;
 
                 template<typename Rng, typename C = ordered_less, typename P = ident,
-                    CONCEPT_REQUIRES_(Concept<Rng, C, P>())>
+                    CONCEPT_REQUIRES_(Sortable<Rng, C, P>())>
                 Rng operator()(Rng && rng, C pred = C{}, P proj = P{}) const
                 {
                     ranges::sort(rng, std::move(pred), std::move(proj));
-                    return std::forward<Rng>(rng);
+                    return static_cast<Rng&&>(rng);
                 }
 
             #ifndef RANGES_DOXYGEN_INVOKED
                 template<typename Rng, typename C = ordered_less, typename P = ident,
-                    CONCEPT_REQUIRES_(!Concept<Rng, C, P>())>
+                    CONCEPT_REQUIRES_(!Sortable<Rng, C, P>())>
                 void operator()(Rng &&, C && = C{}, P && = P{}) const
                 {
                     CONCEPT_ASSERT_MSG(ForwardRange<Rng>(),
                         "The object on which action::sort operates must be a model of the "
                         "ForwardRange concept.");
-                    using I = range_iterator_t<Rng>;
+                    using I = iterator_t<Rng>;
                     CONCEPT_ASSERT_MSG(IndirectInvocable<P, I>(),
                         "The projection function must accept objects of the iterator's value type, "
                         "reference type, and common reference type.");
