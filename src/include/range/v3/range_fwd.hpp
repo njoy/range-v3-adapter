@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <meta/meta.hpp>
 #include <range/v3/detail/config.hpp>
+#include <range/v3/version.hpp>
 
 /// \defgroup group-utility Utility
 /// Utility classes
@@ -37,6 +38,10 @@
 
 /// \defgroup group-concepts Concepts
 /// Concept-checking classes and utilities
+
+RANGES_DIAGNOSTIC_PUSH
+RANGES_DIAGNOSTIC_IGNORE_PRAGMAS
+RANGES_DIAGNOSTIC_IGNORE_CXX17_COMPAT
 
 namespace ranges
 {
@@ -65,33 +70,16 @@ namespace ranges
         }
 
         /// \cond
-        namespace adl_begin_end_detail
+        namespace _end_
         {
-            struct begin_fn;
-            struct end_fn;
-            struct cbegin_fn;
-            struct cend_fn;
-            struct rbegin_fn;
-            struct rend_fn;
-            struct crbegin_fn;
-            struct crend_fn;
+            struct fn;
         }
+        using end_fn = _end_::fn;
 
-        using adl_begin_end_detail::begin_fn;
-        using adl_begin_end_detail::end_fn;
-        using adl_begin_end_detail::cbegin_fn;
-        using adl_begin_end_detail::cend_fn;
-        using adl_begin_end_detail::rbegin_fn;
-        using adl_begin_end_detail::rend_fn;
-        using adl_begin_end_detail::crbegin_fn;
-        using adl_begin_end_detail::crend_fn;
-
-        namespace adl_size_detail
+        namespace _size_
         {
-            struct size_fn;
+            struct fn;
         }
-
-        using adl_size_detail::size_fn;
         /// \endcond
 
         template<typename...>
@@ -258,18 +246,6 @@ namespace ranges
             template<typename Pred, typename Val>
             struct replacer_if_fn;
 
-            template<typename...Ts>
-            void valid_exprs(Ts &&...);
-
-            template<typename I, typename S>
-            struct common_cursor;
-
-            template<typename I, typename D = meta::_t<difference_type<I>>>
-            struct counted_cursor;
-
-            template<typename I>
-            struct move_cursor;
-
             template<typename I>
             struct move_into_cursor;
 
@@ -277,40 +253,78 @@ namespace ranges
             struct from_end_;
 
             template<typename ...Ts>
-            void ignore_unused(Ts &&...)
-            {}
+            constexpr int ignore_unused(Ts &&...)
+            {
+                return 42;
+            }
 
-            #if defined(__clang__) && !defined(_LIBCPP_VERSION)
-                template <class T, class Arg = T>
-                struct is_trivially_copy_assignable
-                  : meta::bool_<__is_trivially_assignable(T &, Arg const&)>
-                {};
-                template <class T, class Arg = T>
-                struct is_trivially_move_assignable
-                  : meta::bool_<__is_trivially_assignable(T &, Arg &&)>
-                {};
-             #elif defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 5
-                template<typename T>
-                using is_trivially_copy_assignable = std::is_trivial<T>;
+            template<int I>
+            struct priority_tag
+              : priority_tag<I - 1>
+            {};
 
-                template<typename T>
-                using is_trivially_move_assignable = std::is_trivial<T>;
-            #else
-                using std::is_trivially_copy_assignable;
-                using std::is_trivially_move_assignable;
-            #endif
+            template<>
+            struct priority_tag<0>
+            {};
 
-            #if RANGES_CXX_LIB_IS_FINAL > 0
-                #if defined(__clang__) && !defined(_LIBCPP_VERSION)
-                    template<typename T>
-                    using is_final = meta::bool_<__is_final(T)>;
-                #else
-                    using std::is_final;
-                #endif
-            #else
-                template<typename T>
-                using is_final = std::false_type;
-            #endif
+        #if defined(__clang__) && !defined(_LIBCPP_VERSION)
+            template<typename T, typename Arg = T>
+            struct is_trivially_copy_assignable
+                : meta::bool_<__is_trivially_assignable(T &, Arg const&)>
+            {};
+            template<typename T, typename Arg = T>
+            struct is_trivially_move_assignable
+                : meta::bool_<__is_trivially_assignable(T &, Arg &&)>
+            {};
+        #elif defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 5
+            template<typename T>
+            using is_trivially_copy_assignable = std::is_trivial<T>;
+
+            template<typename T>
+            using is_trivially_move_assignable = std::is_trivial<T>;
+        #else
+            using std::is_trivially_copy_assignable;
+            using std::is_trivially_move_assignable;
+        #endif
+
+        #if RANGES_CXX_LIB_IS_FINAL > 0
+        # if defined(__clang__) && !defined(_LIBCPP_VERSION)
+            template<typename T>
+            using is_final = meta::bool_<__is_final(T)>;
+        # else
+            using std::is_final;
+        # endif
+        #else
+            template<typename T>
+            using is_final = std::false_type;
+        #endif
+
+            // Work around libc++'s buggy std::is_function
+        #if !defined(_LIBCPP_VERSION) || _LIBCPP_VERSION >= 3800
+            using std::is_function;
+        #else
+            // Function types here:
+            template<typename T>
+            char (&is_function_impl_(priority_tag<0>))[1];
+
+            // Array types here:
+            template<typename T, typename = decltype((*(T*)0)[0])>
+            char (&is_function_impl_(priority_tag<1>))[2];
+
+            // Anything that can be returned from a function here (including
+            // void and reference types):
+            template<typename T, typename = T(*)()>
+            char (&is_function_impl_(priority_tag<2>))[3];
+
+            // Classes and unions (including abstract types) here:
+            template<typename T, typename = int T::*>
+            char (&is_function_impl_(priority_tag<3>))[4];
+
+            template <typename T>
+            struct is_function
+              : meta::bool_<sizeof(detail::is_function_impl_<T>(priority_tag<3>{})) == 1>
+            {};
+        #endif
 
             template<typename T>
             struct remove_rvalue_reference
@@ -326,10 +340,6 @@ namespace ranges
 
             template<typename T>
             using remove_rvalue_reference_t = meta::_t<remove_rvalue_reference<T>>;
-
-            template<int I>
-            struct priority_tag : priority_tag<I - 1> {};
-            template<> struct priority_tag<0> {};
         }
         /// \endcond
 
@@ -371,8 +381,8 @@ namespace ranges
         template<typename Rng>
         using is_infinite = meta::bool_<range_cardinality<Rng>::value == infinite>;
 
-        template<typename T, typename Enable = void>
-        struct is_view;
+        template<typename T>
+        struct enable_view;
 
         template<typename R>
         struct disable_sized_range;
@@ -383,8 +393,14 @@ namespace ranges
         template<typename Cur>
         struct basic_mixin;
 
-        template<typename Cur>
-        struct basic_iterator;
+        /// \cond
+        namespace _basic_iterator_
+        {
+            template<typename Cur>
+            struct basic_iterator;
+        }
+        using _basic_iterator_::basic_iterator;
+        /// \endcond
 
         template<cardinality>
         struct basic_view : view_base
@@ -398,9 +414,18 @@ namespace ranges
                  cardinality C = range_cardinality<BaseRng>::value>
         struct view_adaptor;
 
+        /// \cond
+        namespace _common_iterator_
+        {
+            template<typename I, typename S>
+            struct common_iterator;
+        }
+        using _common_iterator_::common_iterator;
+        /// \endcond
+
         template<typename I, typename S>
-        using common_iterator =
-            meta::if_<std::is_same<I, S>, I, basic_iterator<detail::common_cursor<I, S>>>;
+        using common_iterator_t =
+            meta::if_<std::is_same<I, S>, I, common_iterator<I, S>>;
 
         template<typename First, typename Second>
         struct compressed_pair;
@@ -430,6 +455,9 @@ namespace ranges
 
         template<typename T, bool RValue = false>
         struct reference_wrapper;
+
+        template<typename>
+        struct is_reference_wrapper;
 
         template<typename T>
         using rvalue_reference_wrapper = reference_wrapper<T, true>;
@@ -473,7 +501,7 @@ namespace ranges
             struct const_fn;
         }
 
-        template<typename I, typename D = meta::_t<difference_type<I>>>
+        template<typename I>
         struct counted_view;
 
         namespace view
@@ -483,13 +511,14 @@ namespace ranges
 
         struct default_sentinel { };
 
-        template<typename I, typename D = meta::_t<difference_type<I>>>
-        using counted_iterator =
-            basic_iterator<detail::counted_cursor<I, D>>;
+        namespace _counted_iterator_
+        {
+            template<typename I, typename = void>
+            struct counted_iterator;
+        }
 
         template<typename I>
-        using move_iterator =
-            basic_iterator<detail::move_cursor<I>>;
+        struct move_iterator;
 
         template<typename I>
         using move_into_iterator =
@@ -757,5 +786,7 @@ namespace ranges
         }
     }
 }
+
+RANGES_DIAGNOSTIC_POP
 
 #endif

@@ -52,15 +52,92 @@ Supported Compilers
 
 The code is known to work on the following compilers:
 
-- clang 3.5.2
-- GCC 4.8.5 (C++14 support requires GCC 5.2; C++14 "extended constexpr" support is poor before 6.1.)
-- VS2015 Update 3 "Clang with Microsoft CodeGen" (Clang/C2)
+- clang 3.6.2 (or later)
+- GCC 4.9.1 (or later) (C++14 support requires GCC 5.2; C++14 "extended constexpr" support is poor before 6.1.)
+- "Clang with Microsoft CodeGen" (Clang/C2) VS2015 Update 3 (or later)
 
 **Development Status:** This code is fairly stable, well-tested, and suitable for casual use, although currently lacking documentation. No promise is made about support or long-term stability. This code *will* evolve without regard to backwards compatibility.
 
 **Build status**
 - on Travis-CI: [![Travis Build Status](https://travis-ci.org/ericniebler/range-v3.svg?branch=master)](https://travis-ci.org/ericniebler/range-v3)
-- on AppVeyor: [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/yh3fufmhm53rkf3d/branch/master?svg=true)](https://ci.appveyor.com/project/devdiv/range-v3)
+- on AppVeyor: [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/fwl9ymc2t6ukn9qj/branch/master?svg=true)](https://ci.appveyor.com/project/ericniebler/range-v3)
+
+Release Notes:
+--------------
+
+* **0.2.4** April 12, 2017
+  Fix the following bug:
+  - `action::stable_sort` of `vector` broken on Clang 3.8.1 since ~last Xmas (ericniebler/range-v3#632).
+* **0.2.3** April 4, 2017
+  Fix the following bug:
+  - iterators that return move-only types by value do not satisfy Readable (ericniebler/stl2#399).
+* **0.2.2** March 30, 2017
+  New in this release:
+  - `view::linear_distribute(from,to,n)` - A view of `n` elements between `from` and `to`, distributed evenly.
+  - `view::indices(n)` - A view of the indices `[0,1,2...n-1]`.
+  - `view::closed_indices(n)` - A view of the indices `[0,1,2...n]`.
+
+  This release deprecates `view::ints(n)` as confusing to new users.
+* **0.2.1** March 22, 2017
+  New in this release:
+  - `view::cartesian_product`
+  - `action::reverse`
+* **0.2.0** March 13, 2017
+  Bring many interfaces into sync with the Ranges TS.
+  - Many interfaces are simply renamed. The following table shows the old names
+    and the new. (All names are in the `ranges::v3` namespace.)
+
+    | Old Name                      | New Name                  |
+    |-------------------------------|---------------------------|
+    | `indirect_swap`               | `iter_swap`               |
+    | `indirect_move`               | `iter_move`               |
+    | `iterator_value_t`            | `value_type_t`            |
+    | `iterator_reference_t`        | `reference_t`             |
+    | `iterator_difference_t`       | `difference_type_t`       |
+    | `iterator_size_t`             | `size_type_t`             |
+    | `iterator_rvalue_reference_t` | `rvalue_reference_t`      |
+    | `iterator_common_reference_t` | `iter_common_reference_t` |
+    | `range_value_t`               | `range_value_type_t`      |
+    | `range_difference_t`          | `range_difference_type_t` |
+    | `range_size_t`                | `range_size_type_t`       |
+    | `range_iterator_t`            | `iterator_t`              |
+    | `range_sentinel_t`            | `sentinel_t`              |
+  - `common_iterator` now requires that its two types (`Iterator` and `Sentinel`)
+    are different. Use `common_iterator_t<I, S>` to get the old behavior (i.e., if the two types are the same, it is an alias for `I`; otherwise, it is
+    `common_iterator<I, S>`).
+  - The following iterator adaptors now work with iterators that return proxies
+    from their postfix increment operator (i.e., `operator++(int)`):
+    * `common_iterator`
+    * `counted_iterator`
+  - The following customization points are now implemented per the Ranges TS
+    spec and will no longer find the associated unconstrained overload in
+    namespace `std::`:
+    * `ranges::begin`
+    * `ranges::end`
+    * `ranges::size`
+    * `ranges::swap`
+    * `ranges::iter_swap`
+
+    (In practice, this has very little effect but it may effect overloading in
+    rare situations.)
+  - `ranges::is_swappable` now only takes one template parameter. The new
+    `ranges::is_swappable_with<T, U>` tests whether `T` and `U` are swappable.
+    `ranges::is_swappable<T>` is equivalent to `ranges::is_swappable_with<T &, T &>`.
+  - The following object concepts have changed to conform with the Ranges TS
+    specification, and approved changes (see [P0547](http://wg21.link/p0547)):
+    * `Destructible`
+    * `Constructible`
+    * `DefaultConstructible`
+    * `MoveConstructible`
+    * `MoveConstructible`
+    * `Movable`
+    * `Assignable`
+  - The `View` concept is no longer satisfied by reference types.
+  - The syntax for defining a concept has changed slightly. See [utility/iterator_concepts.hpp](https://github.com/ericniebler/range-v3/blob/master/include/range/v3/utility/iterator_concepts.hpp) for examples.
+* **0.1.1**
+  Small tweak to `Writable` concept to fix #537.
+* **0.1.0**
+  March 8, 2017, Begin semantic versioning
 
 Say Thanks!
 -----------

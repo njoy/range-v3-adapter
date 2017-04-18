@@ -21,6 +21,14 @@
 
 using namespace ranges;
 
+struct MoveOnlyReadable
+{
+    using value_type = std::unique_ptr<int>;
+    value_type operator*() const;
+};
+
+CONCEPT_ASSERT(Readable<MoveOnlyReadable>());
+
 void test_insert_iterator()
 {
     CONCEPT_ASSERT(OutputIterator<insert_iterator<std::vector<int>>, int&&>());
@@ -143,6 +151,11 @@ static_assert(!meta::is_trait<ranges::value_type<int*&>>::value, "");
 static_assert(!meta::is_trait<ranges::value_type<int*&&>>::value, "");
 static_assert(!meta::is_trait<ranges::value_type<int(&)(int)>>::value, "");
 static_assert(!meta::is_trait<ranges::value_type<std::ostream&>>::value, "");
+
+CONCEPT_ASSERT(IndirectlySwappable<int *, int *>());
+CONCEPT_ASSERT(IndirectlyMovable<int const *, int *>());
+CONCEPT_ASSERT(!IndirectlySwappable<int const *, int const *>());
+CONCEPT_ASSERT(!IndirectlyMovable<int const *, int const *>());
 
 int main()
 {
