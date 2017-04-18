@@ -36,7 +36,7 @@ message( STATUS "" )
 message( STATUS "-----------------------------------------------------------" )
 
 add_library( range-v3-adapter INTERFACE )
-target_include_directories( range-v3-adapter INTERFACE src )
+target_include_directories( range-v3-adapter INTERFACE src/include )
 target_sources( range-v3-adapter INTERFACE
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/include/meta/meta.hpp"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/include/meta/meta_fwd.hpp"
