@@ -16,9 +16,10 @@
 #define RANGES_V3_DETAIL_CONFIG_HPP
 
 #include <iosfwd>
-#if(defined(NDEBUG) && !defined(RANGES_ENSURE_MSG)) || \
+#if (defined(NDEBUG) && !defined(RANGES_ENSURE_MSG)) || \
     (!defined(NDEBUG) && !defined(RANGES_ASSERT) && \
-     defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 5)
+     defined(__GNUC__) && !defined(__clang__) && \
+     (__GNUC__ < 5 || defined(__MINGW32__)))
 #include <cstdio>
 #include <cstdlib>
 
@@ -40,7 +41,8 @@ namespace ranges
 #endif
 
 #ifndef RANGES_ASSERT
-#if !defined(NDEBUG) && defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 5
+#if !defined(NDEBUG) && defined(__GNUC__) && !defined(__clang__) && \
+    (__GNUC__ < 5 || defined(__MINGW32__))
 #define RANGES_ASSERT(...) \
     static_cast<void>((__VA_ARGS__) ? void(0) : \
         ::ranges::detail::assert_failure(__FILE__, __LINE__, "assertion failed: " #__VA_ARGS__))
@@ -363,10 +365,13 @@ namespace ranges
 #endif  // RANGES_CXX_INLINE_VARIABLES
 
 #if RANGES_CXX_INLINE_VARIABLES < RANGES_CXX_INLINE_VARIABLES_17
-#define RANGES_INLINE_VARIABLE(type, name)                            \
-    inline namespace                                                  \
-    {                                                                 \
-        constexpr auto& name = ::ranges::static_const<type>::value;   \
+#define RANGES_INLINE_VARIABLE(type, name)                              \
+    inline namespace function_objects                                   \
+    {                                                                   \
+        inline namespace                                                \
+        {                                                               \
+            constexpr auto &name = ::ranges::static_const<type>::value; \
+        }                                                               \
     }
 
 #else  // RANGES_CXX_INLINE_VARIABLES >= RANGES_CXX_INLINE_VARIABLES_17
