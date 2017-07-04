@@ -85,6 +85,23 @@ endif()
 range_v3_append_flag(RANGE_V3_HAS_MARCH_NATIVE "-march=native")
 range_v3_append_flag(RANGE_V3_HAS_MTUNE_NATIVE "-mtune=native")
 
+# Test for <thread>
+try_compile(RANGE_V3_TRY_THREAD ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/thread_test_code.cpp)
+if(NOT RANGE_V3_TRY_THREAD)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRANGES_CXX_THREAD=0")
+endif()
+
+# Test for coroutine TS support
+include(CheckCXXSourceCompiles)
+
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/cmake/coro_test_code.cpp" RANGE_V3_CORO_TEST_CODE)
+set(CMAKE_REQUIRED_FLAGS "-fcoroutines-ts")
+check_cxx_source_compiles("${RANGE_V3_CORO_TEST_CODE}" RANGE_V3_HAS_FCOROUTINES_TS)
+
+if (RANGE_V3_HAS_FCOROUTINES_TS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines-ts")
+endif()
+
 # Test all headers
 file(GLOB_RECURSE RANGE_V3_PUBLIC_HEADERS
                   RELATIVE "${CMAKE_SOURCE_DIR}/include"
@@ -116,19 +133,21 @@ file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/include/range/v3/version.hpp RANGE_V3_N
 if(NOT RANGE_V3_NEW_VERSION_HPP STREQUAL RANGE_V3_OLD_VERSION_HPP)
   # Check that Version.cmake is the only changed file:
   execute_process(
-    COMMAND ${GIT_EXECUTABLE} -C "${CMAKE_CURRENT_SOURCE_DIR}" status -s -uno
+    COMMAND ${GIT_EXECUTABLE} -C "${CMAKE_CURRENT_SOURCE_DIR}" status --porcelain -uno
     OUTPUT_VARIABLE RANGE_V3_GIT_STATUS
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
-  if (NOT "x${RANGE_V3_GIT_STATUS}" STREQUAL "x M Version.cmake")
+  string(REPLACE "\n" ";"  RANGE_V3_GIT_STATUS ${RANGE_V3_GIT_STATUS})
+  if (NOT "x${RANGE_V3_GIT_STATUS}" STREQUAL "x M README.md; M Version.cmake")
     message(FATAL_ERROR "Cannot update version.hpp: range-v3 source directory has a dirty status")
   endif()
   file(
     COPY ${CMAKE_CURRENT_BINARY_DIR}/include/range/v3/version.hpp
     DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/include/range/v3
   )
-  # Update the conanfile, too
+  # Update the conanfiles, too
   configure_file(conanfile.py.in ${CMAKE_CURRENT_SOURCE_DIR}/conanfile.py @ONLY)
+  configure_file(test_package/conanfile.py.in ${CMAKE_CURRENT_SOURCE_DIR}/test_package/conanfile.py @ONLY)
   execute_process(
     COMMAND ${GIT_EXECUTABLE} -C "${CMAKE_CURRENT_SOURCE_DIR}" add -u
   )
@@ -146,10 +165,12 @@ if(NOT RANGE_V3_NEW_VERSION_HPP STREQUAL RANGE_V3_OLD_VERSION_HPP)
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
   endif()
-  message("Version updated to @{RANGE_V3_VERSION}. Don't forget to:")
+  message("Version updated to ${RANGE_V3_VERSION}. Don't forget to:")
   message("  git push origin <feature-branch>")
   message("and (after that is merged to master) then:")
-  message("  conan upload range-v3/${RANGE_V3_VERSION}@ericniebler/stable")
+  message("  conan export ericniebler")
+  message("  conan test_package")
+  message("  conan upload --all range-v3/${RANGE_V3_VERSION}@ericniebler/stable")
 endif()
 
 add_subdirectory(doc)
