@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -90,8 +90,8 @@ namespace ranges
                     Fn()(ref.get())
                 )
 
-                template<typename T, bool RValue, typename Fn = fn>
-                constexpr auto operator()(ranges::reference_wrapper<T, RValue> ref) const
+                template<typename T, typename Fn = fn>
+                constexpr auto operator()(ranges::reference_wrapper<T> ref) const
                 RANGES_DECLTYPE_AUTO_RETURN_NOEXCEPT
                 (
                     Fn()(ref.get())
@@ -102,9 +102,10 @@ namespace ranges
 
         /// \ingroup group-core
         /// \return The result of an unqualified call to `size`
-        /// Not to spec per N4651: allow non-const size functions (See
-        /// https://github.com/ericniebler/range-v3/issues/385)
-        RANGES_INLINE_VARIABLE(_size_::fn, size)
+        inline namespace CPOs
+        {
+            RANGES_INLINE_VARIABLE(_size_::fn, size)
+        }
     }
 }
 

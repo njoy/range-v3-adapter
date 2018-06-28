@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -63,8 +63,13 @@ namespace ranges
         /// \cond
         namespace adl_move_detail
         {
+#if (defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 5) || defined(_MSC_VER)
+            // Workaround unclassified GCC4 bug
+            void iter_move(); // unqualified name lookup block
+#endif
+
             template<typename T,
-                typename = decltype(iter_move(std::declval<T &&>()))>
+                typename = decltype(iter_move(std::declval<T>()))>
             std::true_type try_adl_iter_move_(int);
 
             template<typename T>
@@ -99,7 +104,10 @@ namespace ranges
         }
         /// \endcond
 
-        RANGES_INLINE_VARIABLE(adl_move_detail::iter_move_fn, iter_move)
+        inline namespace CPOs
+        {
+            RANGES_INLINE_VARIABLE(adl_move_detail::iter_move_fn, iter_move)
+        }
 
         /// \cond
         struct indirect_move_fn

@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -140,7 +140,11 @@ namespace ranges
 
         /// \ingroup group-utility
         /// \sa `advance_fn`
-        RANGES_INLINE_VARIABLE(adl_advance_detail::advance_fn, advance)
+        /// Not to spec: advance is an ADL customization point
+        inline namespace CPOs
+        {
+            RANGES_INLINE_VARIABLE(adl_advance_detail::advance_fn, advance)
+        }
 
         namespace adl_advance_detail
         {

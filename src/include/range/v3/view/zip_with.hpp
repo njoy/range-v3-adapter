@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -321,8 +321,8 @@ namespace ranges
             {
                 template<typename Fun, typename ...Rngs>
                 using Concept = meta::and_<
-                    meta::and_<InputRange<Rngs>...>,
-                    CopyConstructible<Fun>(),
+                    InputRange<Rngs>...,
+                    CopyConstructible<Fun>,
                     Invocable<Fun&, iterator_t<Rngs>...>,
                     Invocable<Fun&, copy_tag, iterator_t<Rngs>...>,
                     Invocable<Fun&, move_tag, iterator_t<Rngs>...>>;

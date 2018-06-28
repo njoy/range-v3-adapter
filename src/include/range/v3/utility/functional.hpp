@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //  Copyright Casey Carter 2016
 //
 //  Use, modification and distribution is subject to the
@@ -83,6 +83,7 @@ namespace ranges
         struct ident
         {
             template<typename T>
+            constexpr
             T && operator()(T && t) const noexcept
             {
                 return (T &&) t;
@@ -93,6 +94,7 @@ namespace ranges
         struct plus
         {
             template<typename T, typename U>
+            constexpr
             auto operator()(T && t, U && u) const ->
                 decltype((T &&) t + (U &&) u)
             {
@@ -104,6 +106,7 @@ namespace ranges
         struct minus
         {
             template<typename T, typename U>
+            constexpr
             auto operator()(T && t, U && u) const ->
                 decltype((T &&) t - (U &&) u)
             {
@@ -115,6 +118,7 @@ namespace ranges
         struct multiplies
         {
             template<typename T, typename U>
+            constexpr
             auto operator()(T && t, U && u) const ->
                 decltype((T &&) t * (U &&) u)
             {
@@ -126,6 +130,7 @@ namespace ranges
         struct bitwise_or
         {
             template<typename T, typename U>
+            constexpr
             auto operator()(T && t, U && u) const ->
                 decltype((T &&) t | (U &&) u)
             {
@@ -148,16 +153,19 @@ namespace ranges
         template<typename T>
         struct coerce
         {
+            constexpr
             T & operator()(T & t) const
             {
                 return t;
             }
             /// \overload
+            constexpr
             T const & operator()(T const & t) const
             {
                 return t;
             }
             /// \overload
+            constexpr
             T operator()(T && t) const
             {
                 return (T &&) t;
@@ -198,11 +206,11 @@ namespace ranges
             struct Invocable
             {
                 template<typename Fun, typename... Args>
-                using result_t = result_of_t<Fun &&(Args &&...)>;
+                using result_t = invoke_result_t<Fun, Args...>;
 
                 template<typename Fun, typename... Args>
                 auto requires_() ->
-                    meta::void_<result_of_t<Fun &&(Args &&...)>>;
+                    meta::void_<invoke_result_t<Fun, Args...>>;
             };
 
             struct RegularInvocable
@@ -394,7 +402,7 @@ namespace ranges
               : composed::compressed_pair{std::move(first), std::move(second)}
             {}
             template<typename...Ts,
-                typename FirstResultT = result_of_t<First&(Ts &&...)>>
+                typename FirstResultT = invoke_result_t<First&, Ts...>>
             auto operator()(Ts &&...ts)
             RANGES_DECLTYPE_NOEXCEPT(composed::do_(
                 std::declval<First &>(),
@@ -408,7 +416,7 @@ namespace ranges
                     (Ts &&) ts...);
             }
             template<typename...Ts,
-                typename FirstResultT = result_of_t<First const &(Ts &&...)>>
+                typename FirstResultT = invoke_result_t<First const &, Ts...>>
             auto operator()(Ts &&...ts) const
             RANGES_DECLTYPE_NOEXCEPT(composed::do_(
                 std::declval<First const &>(),
@@ -522,7 +530,7 @@ namespace ranges
             // value_type (needs no impl)
             template<typename ...Its>
             [[noreturn]] auto operator()(copy_tag, Its...) const ->
-                result_of_t<Fn &(decltype(*std::declval<Its>())...)>
+                invoke_result_t<Fn &, decltype(*std::declval<Its>())...>
             {
                 RANGES_EXPECT(false);
             }
@@ -659,13 +667,13 @@ namespace ranges
                 std::is_lvalue_reference<T>,
                 std::reference_wrapper<meta::_t<std::remove_reference<T>>>,
                 T &&>>
-        U bind_forward(meta::_t<std::remove_reference<T>> & t) noexcept
+        U bind_forward(meta::_t<std::remove_reference<T>> &t) noexcept
         {
             return static_cast<U>(t);
         }
 
         template<typename T>
-        T && bind_forward(meta::_t<std::remove_reference<T>> && t) noexcept
+        T && bind_forward(meta::_t<std::remove_reference<T>> &&t) noexcept
         {
             // This is to catch way sketchy stuff like: forward<int const &>(42)
             static_assert(!std::is_lvalue_reference<T>::value, "You didn't just do that!");
@@ -745,10 +753,10 @@ namespace ranges
             using type = T &;
         };
 
-        template<typename T, bool RValue>
-        struct bind_element<reference_wrapper<T, RValue>>
+        template<typename T>
+        struct bind_element<reference_wrapper<T>>
         {
-            using type = meta::if_c<RValue, T &&, T &>;
+            using type = typename reference_wrapper<T>::reference;
         };
 
         template<typename T>
@@ -757,13 +765,13 @@ namespace ranges
         struct ref_fn : pipeable<ref_fn>
         {
             template<typename T, CONCEPT_REQUIRES_(!is_reference_wrapper_t<T>())>
-            reference_wrapper<T> operator()(T & t) const
+            reference_wrapper<T> operator()(T &t) const
             {
                 return {t};
             }
             /// \overload
-            template<typename T, bool RValue>
-            reference_wrapper<T, RValue> operator()(reference_wrapper<T, RValue> t) const
+            template<typename T>
+            reference_wrapper<T> operator()(reference_wrapper<T> t) const
             {
                 return t;
             }
@@ -782,46 +790,23 @@ namespace ranges
         template<typename T>
         using ref_t = decltype(ref(std::declval<T>()));
 
-        struct rref_fn : pipeable<rref_fn>
-        {
-            template<typename T,
-                CONCEPT_REQUIRES_(!is_reference_wrapper_t<T>() &&
-                    !std::is_lvalue_reference<T>::value)>
-            reference_wrapper<T, true> operator()(T && t) const
-            {
-                return {std::move(t)};
-            }
-            /// \overload
-            template<typename T>
-            reference_wrapper<T, true> operator()(reference_wrapper<T, true> t) const
-            {
-                return t;
-            }
-        };
-
-        /// \ingroup group-utility
-        /// \sa `rref_fn`
-        RANGES_INLINE_VARIABLE(rref_fn, rref)
-
-        template<typename T>
-        using rref_t = decltype(rref(std::declval<T>()));
-
         struct unwrap_reference_fn : pipeable<unwrap_reference_fn>
         {
             template<typename T, CONCEPT_REQUIRES_(!is_reference_wrapper<T>())>
-            T && operator()(T && t) const noexcept
+            T &&operator()(T &&t) const noexcept
             {
                 return static_cast<T&&>(t);
             }
             /// \overload
-            template<typename T, bool RValue>
-            meta::if_c<RValue, T &&, T &> operator()(reference_wrapper<T, RValue> t) const noexcept
+            template<typename T>
+            typename reference_wrapper<T>::reference
+            operator()(reference_wrapper<T> t) const noexcept
             {
                 return t.get();
             }
             /// \overload
             template<typename T>
-            T & operator()(std::reference_wrapper<T> t) const noexcept
+            T &operator()(std::reference_wrapper<T> t) const noexcept
             {
                 return t.get();
             }
@@ -892,7 +877,7 @@ namespace ranges
           : ImplFn
         {
         private:
-            ImplFn const & base() const
+            constexpr ImplFn const & base() const
             {
                 return *this;
             }
@@ -900,6 +885,7 @@ namespace ranges
             using ImplFn::operator();
 
             template<typename V0, typename...Args>
+            constexpr
             auto operator()(std::initializer_list<V0> &&rng0, Args &&...args) const ->
                 decltype(std::declval<ImplFn const &>()(std::move(rng0), std::declval<Args>()...))
             {
@@ -907,6 +893,7 @@ namespace ranges
             }
             /// \overload
             template<typename Rng0, typename V1, typename...Args>
+            constexpr
             auto operator()(Rng0 && rng0, std::initializer_list<V1> &&rng1, Args &&...args) const ->
                 decltype(std::declval<ImplFn const &>()(std::declval<Rng0>(), std::move(rng1), std::declval<Args>()...))
             {
@@ -914,6 +901,7 @@ namespace ranges
             }
             /// \overload
             template<typename V0, typename V1, typename...Args>
+            constexpr
             auto operator()(std::initializer_list<V0> rng0, std::initializer_list<V1> &&rng1, Args &&...args) const ->
                 decltype(std::declval<ImplFn const &>()(std::move(rng0), std::move(rng1), std::declval<Args>()...))
             {

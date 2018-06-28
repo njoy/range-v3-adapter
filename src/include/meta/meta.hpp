@@ -2,7 +2,7 @@
 //
 // Meta library
 //
-//  Copyright Eric Niebler 2014-2015
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -17,11 +17,11 @@
 
 #include <cstddef>
 #include <initializer_list>
-#include <meta/meta_fwd.hpp>
 #include <type_traits>
 #include <utility>
+#include <meta/meta_fwd.hpp>
 
-#if defined(__clang__)
+#ifdef __clang__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma GCC diagnostic ignored "-Wpragmas"
@@ -139,7 +139,7 @@ namespace meta
         template <typename T>
         using _t = typename T::type;
 
-#if defined(__cpp_variable_templates) || defined(META_DOXYGEN_INVOKED)
+#if META_CXX_VARIABLE_TEMPLATES || defined(META_DOXYGEN_INVOKED)
         /// Variable alias for \c T::type::value
         /// \note Requires C++14 or greater.
         /// \ingroup invocation
@@ -441,9 +441,9 @@ namespace meta
         }
 /// \endcond
 
-///////////////////////////////////////////////////////////////////////////////////////////////
-// integer_sequence
-#ifndef __cpp_lib_integer_sequence
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        // integer_sequence
+#if !META_CXX_INTEGER_SEQUENCE
         /// A container for a sequence of compile-time integer constants.
         /// \ingroup integral
         template <typename T, T... Is>
@@ -463,9 +463,7 @@ namespace meta
         template <std::size_t... Is>
         using index_sequence = integer_sequence<std::size_t, Is...>;
 
-#if !defined(META_DOXYGEN_INVOKED) &&                                        \
-    ((defined(__clang__) && __clang_major__ >= 3 && __clang_minor__ >= 8) || \
-     (defined(_MSC_VER) && _MSC_FULL_VER >= 190023918))
+#if META_HAS_MAKE_INTEGER_SEQ && !defined(META_DOXYGEN_INVOKED)
         // Implement make_integer_sequence and make_index_sequence with the
         // __make_integer_seq builtin on compilers that provide it. (Redirect
         // through decltype to workaround suspected clang bug.)
@@ -1118,18 +1116,21 @@ namespace meta
             template <bool>
             struct _and_
             {
-                template <class = void>
+                template <class...>
                 using invoke = std::true_type;
             };
 
             template <>
             struct _and_<false>
             {
-                template <typename Bool_, typename... Bools>
-                using invoke = invoke<
-                    if_c<!Bool_::type::value,
-                         id<std::false_type>,
-                         _and_<0==sizeof...(Bools)>>, Bools...>;
+                template <typename Bool, typename... Bools>
+                using invoke =
+                    invoke<
+                        if_c<
+                            !Bool::type::value,
+                            id<std::false_type>,
+                            _and_<0 == sizeof...(Bools)>>,
+                        Bools...>;
             };
 
             template <bool>
@@ -1143,10 +1144,13 @@ namespace meta
             struct _or_<false>
             {
                 template <typename Bool_, typename... Bools>
-                using invoke = invoke<
-                    if_c<Bool_::type::value,
-                         id<std::true_type>,
-                         _or_<0 == sizeof...(Bools)>>, Bools...>;
+                using invoke =
+                    invoke<
+                        if_c<
+                            Bool_::type::value,
+                            id<std::true_type>,
+                            _or_<0 == sizeof...(Bools)>>,
+                        Bools...>;
             };
         } // namespace detail
         /// \endcond
@@ -1582,6 +1586,18 @@ namespace meta
         /// \cond
         namespace detail
         {
+#if META_HAS_TYPE_PACK_ELEMENT && !defined(META_DOXYGEN_INVOKED)
+            template <typename List, std::size_t N, typename = void>
+            struct at_
+            {
+            };
+
+            template <typename... Ts, std::size_t N>
+            struct at_<list<Ts...>, N, void_<__type_pack_element<N, Ts...>>>
+            {
+                using type = __type_pack_element<N, Ts...>;
+            };
+#else
             template <typename VoidPtrs>
             struct at_impl_;
 
@@ -1594,34 +1610,33 @@ namespace meta
                 static T eval(VoidPtrs..., T *, Us *...);
             };
 
-            template <typename List, typename N>
+            template <typename List, std::size_t N>
             struct at_
             {
             };
 
-            template <typename... Ts, typename N>
+            template <typename... Ts, std::size_t N>
             struct at_<list<Ts...>, N>
-                : decltype(at_impl_<repeat_n<N, void *>>::eval(static_cast<id<Ts> *>(nullptr)...))
+                : decltype(at_impl_<repeat_n_c<N, void *>>::eval(static_cast<id<Ts> *>(nullptr)...))
             {
             };
+#endif // META_HAS_TYPE_PACK_ELEMENT
         } // namespace detail
         /// \endcond
-
-        ///////////////////////////////////////////////////////////////////////////////////////////
-        // at
-        /// Return the \p N th element in the \c meta::list \p List.
-        /// \par Complexity
-        /// Amortized \f$ O(1) \f$.
-        /// \ingroup list
-        template <typename List, typename N>
-        using at = _t<detail::at_<List, N>>;
 
         /// Return the \p N th element in the \c meta::list \p List.
         /// \par Complexity
         /// Amortized \f$ O(1) \f$.
         /// \ingroup list
         template <typename List, std::size_t N>
-        using at_c = at<List, meta::size_t<N>>;
+        using at_c = _t<detail::at_<List, N>>;
+
+        /// Return the \p N th element in the \c meta::list \p List.
+        /// \par Complexity
+        /// Amortized \f$ O(1) \f$.
+        /// \ingroup list
+        template <typename List, typename N>
+        using at = at_c<List, N::type::value>;
 
         namespace lazy
         {
@@ -1975,18 +1990,13 @@ namespace meta
             template <typename... T, typename V>
             struct find_index_<list<T...>, V>
             {
-              #if defined(__clang__) && __cplusplus > 201402L
-                // work-around clang bug: https://llvm.org/bugs/show_bug.cgi?id=28385
-                static constexpr std::size_t index_()
-                {
-                    constexpr bool s_v[] = {std::is_same<T, V>::value...};
-                    return find_index_i_(s_v, s_v + sizeof...(T));
-                }
-                using type = size_t<index_()>;
-              #else
+#if (defined(__clang__) && __clang_major__ < 6) || defined(__apple_build_version__)
+                // Explicitly specify extent to avoid https://llvm.org/bugs/show_bug.cgi?id=28385
+                static constexpr bool s_v[sizeof...(T)] = {std::is_same<T, V>::value...};
+#else
                 static constexpr bool s_v[] = {std::is_same<T, V>::value...};
+#endif
                 using type = size_t<find_index_i_(s_v, s_v + sizeof...(T))>;
-              #endif
             };
         } // namespace detail
         /// \endcond
@@ -2037,18 +2047,13 @@ namespace meta
             template <typename... T, typename V>
             struct reverse_find_index_<list<T...>, V>
             {
-              #if defined(__clang__) && __cplusplus > 201402L
-                // work-around clang bug: https://llvm.org/bugs/show_bug.cgi?id=28385
-                static constexpr std::size_t index_()
-                {
-                    constexpr bool s_v[] = {std::is_same<T, V>::value...};
-                    return reverse_find_index_i_(s_v, s_v + sizeof...(T), sizeof...(T));
-                }
-                using type = size_t<index_()>;
-              #else
+#if (defined(__clang__) && __clang_major__ < 6) || defined(__apple_build_version__)
+                // Explicitly specify extent to avoid https://llvm.org/bugs/show_bug.cgi?id=28385
+                static constexpr bool s_v[sizeof...(T)] = {std::is_same<T, V>::value...};
+#else
                 static constexpr bool s_v[] = {std::is_same<T, V>::value...};
+#endif
                 using type = size_t<reverse_find_index_i_(s_v, s_v + sizeof...(T), sizeof...(T))>;
-              #endif
             };
         } // namespace detail
         /// \endcond
@@ -2134,19 +2139,14 @@ namespace meta
             struct find_if_<list<List...>, Fun,
                             void_<integer_sequence<bool, bool(invoke<Fun, List>::type::value)...>>>
             {
-              #if defined(__clang__) && __cplusplus > 201402L
-                // work-around clang bug: https://llvm.org/bugs/show_bug.cgi?id=28385
-                static constexpr std::size_t index_()
-                {
-                    constexpr bool s_v[] = {invoke<Fun, List>::type::value...};
-                    return detail::find_if_i_(s_v, s_v + sizeof...(List)) - s_v;
-                }
-                using type = drop_c<list<List...>, index_()>;
-              #else
+#if (defined(__clang__) && __clang_major__ < 6) || defined(__apple_build_version__)
+                // Explicitly specify extent to avoid https://llvm.org/bugs/show_bug.cgi?id=28385
+                static constexpr bool s_v[sizeof...(List)] = {invoke<Fun, List>::type::value...};
+#else
                 static constexpr bool s_v[] = {invoke<Fun, List>::type::value...};
+#endif
                 using type =
                     drop_c<list<List...>, detail::find_if_i_(s_v, s_v + sizeof...(List)) - s_v>;
-              #endif
             };
         } // namespace detail
         /// \endcond
@@ -2199,21 +2199,15 @@ namespace meta
                 list<List...>, Fun,
                 void_<integer_sequence<bool, bool(invoke<Fun, List>::type::value)...>>>
             {
-              #if defined(__clang__) && __cplusplus > 201402L
-                // work-around clang bug: https://llvm.org/bugs/show_bug.cgi?id=28385
-                static constexpr std::size_t index_()
-                {
-                    constexpr bool s_v[] = {invoke<Fun, List>::type::value...};
-                    return detail::reverse_find_if_i_(s_v, s_v + sizeof...(List),
-                                                      s_v + sizeof...(List)) - s_v;
-                }
-                using type = drop_c<list<List...>, index_()>;
-              #else
+#if (defined(__clang__) && __clang_major__ < 6) || defined(__apple_build_version__)
+                // Explicitly specify extent to avoid https://llvm.org/bugs/show_bug.cgi?id=28385
+                static constexpr bool s_v[sizeof...(List)] = {invoke<Fun, List>::type::value...};
+#else
                 static constexpr bool s_v[] = {invoke<Fun, List>::type::value...};
+#endif
                 using type =
                   drop_c<list<List...>, detail::reverse_find_if_i_(s_v, s_v + sizeof...(List),
                                                                    s_v + sizeof...(List)) - s_v>;
-              #endif
             };
         }
         /// \endcond
@@ -2332,18 +2326,13 @@ namespace meta
             template <typename... List, typename T>
             struct count_<list<List...>, T>
             {
-              #if defined(__clang__) && __cplusplus > 201402L
-                // work-around clang bug: https://llvm.org/bugs/show_bug.cgi?id=28385
-                static constexpr std::size_t count__()
-                {
-                    constexpr bool s_v[] = {std::is_same<T, List>::value...};
-                    return detail::count_i_(s_v, s_v + sizeof...(List), 0u);
-                }
-                using type = meta::size_t<count__()>;
-              #else
+#if (defined(__clang__) && __clang_major__ < 6) || defined(__apple_build_version__)
+                // Explicitly specify extent to avoid https://llvm.org/bugs/show_bug.cgi?id=28385
+                static constexpr bool s_v[sizeof...(List)] = {std::is_same<T, List>::value...};
+#else
                 static constexpr bool s_v[] = {std::is_same<T, List>::value...};
+#endif
                 using type = meta::size_t<detail::count_i_(s_v, s_v + sizeof...(List), 0u)>;
-              #endif
             };
         }
 
@@ -2381,18 +2370,13 @@ namespace meta
             struct count_if_<list<List...>, Fn,
                              void_<integer_sequence<bool, bool(invoke<Fn, List>::type::value)...>>>
             {
-              #if defined(__clang__) && __cplusplus > 201402L
-                // work-around clang bug: https://llvm.org/bugs/show_bug.cgi?id=28385
-                static constexpr std::size_t count_()
-                {
-                    constexpr bool s_v[] = {invoke<Fn, List>::type::value...};
-                    return detail::count_i_(s_v, s_v + sizeof...(List), 0u);
-                }
-                using type = meta::size_t<count_()>;
-              #else
+#if (defined(__clang__) && __clang_major__ < 6) || defined(__apple_build_version__)
+                // Explicitly specify extent to avoid https://llvm.org/bugs/show_bug.cgi?id=28385
+                static constexpr bool s_v[sizeof...(List)] = {invoke<Fn, List>::type::value...};
+#else
                 static constexpr bool s_v[] = {invoke<Fn, List>::type::value...};
+#endif
                 using type = meta::size_t<detail::count_i_(s_v, s_v + sizeof...(List), 0u)>;
-              #endif
             };
         }
 
@@ -2565,17 +2549,17 @@ namespace meta
             // Indirection here needed to avoid Core issue 1430
             // http://open-std.org/jtc1/sc22/wg21/docs/cwg_active.html#1430
             template <typename Sequence>
-            struct as_list_ : lazy::invoke<uncurry<curry<quote_trait<id>>>, uncvref_t<Sequence>>
+            struct as_list_ : lazy::invoke<uncurry<quote<list>>, Sequence>
             {
             };
         } // namespace detail
         /// \endcond
 
         /// Turn a type into an instance of \c meta::list in a way determined by
-        /// \c meta::invoke.
+        /// \c meta::apply.
         /// \ingroup list
         template <typename Sequence>
-        using as_list = _t<detail::as_list_<Sequence>>;
+        using as_list = _t<detail::as_list_<detail::uncvref_t<Sequence>>>;
 
         namespace lazy
         {
@@ -3517,7 +3501,7 @@ namespace meta
 #endif
 /// \endcond
 
-#if defined(__clang__)
+#ifdef __clang__
 #pragma GCC diagnostic pop
 #endif
 #endif

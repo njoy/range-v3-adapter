@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //  Copyright Casey Carter 2016
 //
 //  Use, modification and distribution is subject to the
@@ -339,12 +339,12 @@ namespace ranges
               : box<T>{}
             {}
             CONCEPT_REQUIRES(MoveConstructible<T>())
-            constexpr basic_mixin(T && t)
+            explicit constexpr basic_mixin(T &&t)
                 noexcept(std::is_nothrow_move_constructible<T>::value)
               : box<T>(detail::move(t))
             {}
             CONCEPT_REQUIRES(CopyConstructible<T>())
-            constexpr basic_mixin(T const &t)
+            explicit constexpr basic_mixin(T const &t)
                 noexcept(std::is_nothrow_copy_constructible<T>::value)
               : box<T>(t)
             {}
@@ -352,31 +352,33 @@ namespace ranges
             using box<T>::get;
         };
 
-        /// \cond
-        namespace _basic_iterator_
-        {
-        /// \endcond
+#if RANGES_BROKEN_CPO_LOOKUP
+        namespace _basic_iterator_ { template <typename> struct adl_hook {}; }
+#endif
 
         template<typename Cur>
         struct basic_iterator
           : range_access::mixin_base_t<Cur>
           , detail::iterator_associated_types_base<Cur>
+#if RANGES_BROKEN_CPO_LOOKUP
+          , private _basic_iterator_::adl_hook<basic_iterator<Cur>>
+#endif
         {
         private:
-            template<typename Cur2>
+            template<typename>
             friend struct basic_iterator;
-            friend struct ranges::range_access;
+            friend range_access;
             using mixin_t = range_access::mixin_base_t<Cur>;
             CONCEPT_ASSERT(detail::Cursor<Cur>());
             using assoc_types_ = detail::iterator_associated_types_base<Cur>;
             using typename assoc_types_::cursor_concept_t;
             using typename assoc_types_::reference_t;
             using typename assoc_types_::const_reference_t;
-            RANGES_CXX14_CONSTEXPR Cur &pos() noexcept // this noexcept is a lie
+            RANGES_CXX14_CONSTEXPR Cur &pos() noexcept
             {
                 return this->mixin_t::get();
             }
-            constexpr Cur const &pos() const noexcept // this noexcept is a lie
+            constexpr Cur const &pos() const noexcept
             {
                 return this->mixin_t::get();
             }
@@ -384,9 +386,6 @@ namespace ranges
         public:
             using typename assoc_types_::difference_type;
             constexpr basic_iterator() = default;
-            RANGES_CXX14_CONSTEXPR basic_iterator(Cur pos)
-              : mixin_t{std::move(pos)}
-            {}
             template<typename OtherCur,
                 CONCEPT_REQUIRES_(ConvertibleTo<OtherCur, Cur>() &&
                     Constructible<mixin_t, OtherCur>())>
@@ -394,28 +393,26 @@ namespace ranges
             basic_iterator(basic_iterator<OtherCur> that)
               : mixin_t{std::move(that.pos())}
             {}
-            // Mix in any additional constructors defined and exported by the mixin
+            // Mix in any additional constructors provided by the mixin
             using mixin_t::mixin_t;
 
             template<typename T,
-                CONCEPT_REQUIRES_(!Same<detail::decay_t<T>, basic_iterator>() &&
+                CONCEPT_REQUIRES_(!Same<uncvref_t<T>, basic_iterator>() &&
                     !detail::HasCursorNext<Cur>() && detail::WritableCursor<Cur, T>())>
             RANGES_CXX14_CONSTEXPR
             basic_iterator &operator=(T && t)
-            noexcept(noexcept(
-                std::declval<Cur &>().write(static_cast<T &&>(t))))
+            noexcept(noexcept(std::declval<Cur &>().write(static_cast<T &&>(t))))
             {
                 pos().write(static_cast<T &&>(t));
                 return *this;
             }
 
             template<typename T,
-                CONCEPT_REQUIRES_(!Same<detail::decay_t<T>, basic_iterator>() &&
+                CONCEPT_REQUIRES_(!Same<uncvref_t<T>, basic_iterator>() &&
                     !detail::HasCursorNext<Cur>() && detail::WritableCursor<Cur const, T>())>
             RANGES_CXX14_CONSTEXPR
             basic_iterator const &operator=(T && t) const
-            noexcept(noexcept(
-                std::declval<Cur const &>().write(static_cast<T &&>(t))))
+            noexcept(noexcept(std::declval<Cur const &>().write(static_cast<T &&>(t))))
             {
                 pos().write(static_cast<T &&>(t));
                 return *this;
@@ -438,8 +435,7 @@ namespace ranges
             CONCEPT_REQUIRES(detail::HasCursorNext<Cur>() &&
                 detail::is_writable_cursor<Cur const>())
             constexpr const_reference_t operator*() const
-            noexcept(noexcept(
-                const_reference_t{std::declval<Cur const &>()}))
+            noexcept(noexcept(const_reference_t{std::declval<Cur const &>()}))
             {
                 return const_reference_t{pos()};
             }
@@ -453,7 +449,7 @@ namespace ranges
             template<typename C = Cur,
                 CONCEPT_REQUIRES_(detail::HasCursorArrow<C>())>
             constexpr auto operator->() const
-                noexcept(noexcept(range_access::arrow(std::declval<C const &>())))
+            noexcept(noexcept(range_access::arrow(std::declval<C const &>())))
                 -> detail::cursor_arrow_t<C>
             {
                 return range_access::arrow(pos());
@@ -468,7 +464,7 @@ namespace ranges
                         uncvref_t<const_reference_t>>())>
             constexpr meta::_t<std::add_pointer<const_reference_t>>
             operator->() const
-                noexcept(noexcept(*std::declval<basic_iterator const &>()))
+            noexcept(noexcept(*std::declval<basic_iterator const &>()))
             {
                 return std::addressof(**this);
             }
@@ -644,20 +640,35 @@ namespace ranges
                 return *(*this + n);
             }
 
+#if !RANGES_BROKEN_CPO_LOOKUP
             // Optionally support hooking iter_move when the cursor sports a
             // move() member function.
             template<typename C = Cur,
-               CONCEPT_REQUIRES_(Same<C, Cur>() && detail::InputCursor<Cur>())>
+                CONCEPT_REQUIRES_(Same<C, Cur>() && detail::InputCursor<Cur>())>
             RANGES_CXX14_CONSTEXPR
             friend auto iter_move(basic_iterator const &it)
             RANGES_DECLTYPE_AUTO_RETURN_NOEXCEPT
             (
                 range_access::move(static_cast<basic_iterator<C> const &>(it).pos())
             )
+#endif
         };
-        /// \cond
-        } // namespace _basic_iterator_
-        /// \endcond
+
+#if RANGES_BROKEN_CPO_LOOKUP
+        namespace _basic_iterator_
+        {
+            // Optionally support hooking iter_move when the cursor sports a
+            // move() member function.
+            template<typename Cur,
+                CONCEPT_REQUIRES_(detail::InputCursor<Cur>())>
+            RANGES_CXX14_CONSTEXPR
+            auto iter_move(basic_iterator<Cur> const &it)
+            RANGES_DECLTYPE_AUTO_RETURN_NOEXCEPT
+            (
+                range_access::move(range_access::pos(it))
+            )
+        }
+#endif
 
         /// Get a cursor from a basic_iterator
         struct get_cursor_fn

@@ -1,6 +1,6 @@
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -61,7 +61,10 @@ struct check_equal_fn
     }
 };
 
-RANGES_INLINE_VARIABLE(check_equal_fn, check_equal)
+inline namespace function_objects
+{
+    RANGES_INLINE_VARIABLE(check_equal_fn, check_equal)
+}
 
 template<typename Expected, typename Actual>
 void has_type(Actual &&)

@@ -1,6 +1,6 @@
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -280,6 +280,14 @@ int main()
     static_assert(std::is_same<bool, decltype(ranges::equal({1, 2, 3, 4}, p))>::value, "");
     static_assert(std::is_same<bool, decltype(ranges::equal({1, 2, 3, 4}, {1, 2, 3, 4}))>::value, "");
     static_assert(std::is_same<bool, decltype(ranges::equal({1, 2, 3, 4}, ranges::view::unbounded(p)))>::value, "");
+
+#if RANGES_CXX_CONSTEXPR >= RANGES_CXX_CONSTEXPR_14
+    static_assert(ranges::equal({1, 2, 3, 4}, {1, 2, 3, 4}), "");
+    static_assert(!ranges::equal({1, 2, 3, 4}, {1, 2, 3}), "");
+    static_assert(!ranges::equal({1, 2, 3, 4}, {1, 2, 4, 3}), "");
+    static_assert(ranges::equal(std::initializer_list<int>{},
+                                std::initializer_list<int>{}), "");
+#endif
 
     return ::test_result();
 }

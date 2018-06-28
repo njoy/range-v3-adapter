@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -73,7 +73,7 @@ namespace ranges
                 fun_ref_ fun_;
             public:
                 using value_type =
-                    detail::decay_t<result_of_t<Fun&(copy_tag, iterator_t<Rng> &&)>>;
+                    detail::decay_t<invoke_result_t<Fun&, copy_tag, iterator_t<Rng>>>;
                 adaptor() = default;
                 adaptor(fun_ref_ fun)
                   : fun_(std::move(fun))
@@ -167,7 +167,7 @@ namespace ranges
                 sentinel_t<Rng2> end2_;
             public:
                 sentinel() = default;
-                sentinel(detail::any, sentinel_t<Rng1> end1, sentinel_t<Rng1> end2)
+                sentinel(detail::any, sentinel_t<Rng1> end1, sentinel_t<Rng2> end2)
                   : end1_(std::move(end1)), end2_(std::move(end2))
                 {}
             };
@@ -186,8 +186,8 @@ namespace ranges
                     (bool) SinglePass<iterator_t<Rng1>>(),
                     (bool) SinglePass<iterator_t<Rng2>>()>;
                 using value_type =
-                    detail::decay_t<result_of_t<Fun&(copy_tag, iterator_t<Rng1>,
-                        iterator_t<Rng2>)>>;
+                    detail::decay_t<invoke_result_t<Fun &, copy_tag, iterator_t<Rng1>,
+                        iterator_t<Rng2>>>;
 
                 cursor() = default;
                 cursor(fun_ref_ fun, iterator_t<Rng1> it1, iterator_t<Rng2> it2)
