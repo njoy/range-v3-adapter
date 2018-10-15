@@ -12,7 +12,7 @@ option(RANGES_ASAN "Run the tests using AddressSanitizer." OFF)
 option(RANGES_MSAN "Run the tests using MemorySanitizer." OFF)
 option(RANGES_ASSERTIONS "Enable assertions." ON)
 option(RANGES_DEBUG_INFO "Include debug information in the binaries." ON)
-option(RANGES_MODULES "Enables the Modules TS." OFF)
+option(RANGES_MODULES "Enables use of Clang modules (experimental)." OFF)
 option(RANGES_NATIVE "Enables -march/-mtune=native." ON)
 option(RANGES_VERBOSE_BUILD "Enables debug output from CMake." OFF)
 option(RANGES_LLVM_POLLY "Enables LLVM Polly." OFF)
@@ -42,6 +42,10 @@ CMAKE_DEPENDENT_OPTION(RANGE_V3_EXAMPLES
 
 CMAKE_DEPENDENT_OPTION(RANGE_V3_PERF
   "Build the Range-v3 performance benchmarks"
+  ON "${is_subproject}" OFF)
+
+CMAKE_DEPENDENT_OPTION(RANGE_V3_DOCS
+  "Build the Range-v3 documentation"
   ON "${is_subproject}" OFF)
 
 mark_as_advanced(RANGE_V3_PERF)
