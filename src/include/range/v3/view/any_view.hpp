@@ -50,44 +50,44 @@ namespace ranges
          *  \relates ranges::v3::category
          *  \{
          */
-        constexpr category operator& (category lhs, category rhs) noexcept
+        constexpr category operator&(category lhs, category rhs) noexcept
         {
             return static_cast<category>(
                 static_cast<meta::_t<std::underlying_type<category>>>(lhs) &
                 static_cast<meta::_t<std::underlying_type<category>>>(rhs));
         }
 
-        constexpr category operator| (category lhs, category rhs) noexcept
+        constexpr category operator|(category lhs, category rhs) noexcept
         {
             return static_cast<category>(
                 static_cast<meta::_t<std::underlying_type<category>>>(lhs) |
                 static_cast<meta::_t<std::underlying_type<category>>>(rhs));
         }
 
-        constexpr category operator^ (category lhs, category rhs) noexcept
+        constexpr category operator^(category lhs, category rhs) noexcept
         {
             return static_cast<category>(
                 static_cast<meta::_t<std::underlying_type<category>>>(lhs) ^
                 static_cast<meta::_t<std::underlying_type<category>>>(rhs));
         }
 
-        constexpr category operator~ (category lhs) noexcept
+        constexpr category operator~(category lhs) noexcept
         {
             return static_cast<category>(
                 ~static_cast<meta::_t<std::underlying_type<category>>>(lhs));
         }
 
-        RANGES_CXX14_CONSTEXPR category & operator&= (category & lhs, category rhs) noexcept
+        RANGES_CXX14_CONSTEXPR category &operator&=(category &lhs, category rhs) noexcept
         {
             return (lhs = lhs & rhs);
         }
 
-        RANGES_CXX14_CONSTEXPR category & operator|= (category & lhs, category rhs) noexcept
+        RANGES_CXX14_CONSTEXPR category &operator|=(category &lhs, category rhs) noexcept
         {
             return (lhs = lhs | rhs);
         }
 
-        RANGES_CXX14_CONSTEXPR category & operator^= (category & lhs, category rhs) noexcept
+        RANGES_CXX14_CONSTEXPR category &operator^=(category &lhs, category rhs) noexcept
         {
             return (lhs = lhs ^ rhs);
         }
@@ -281,14 +281,14 @@ namespace ranges
 
             template<typename Ref, category Cat>
             struct any_cursor_interface<Ref, Cat, meta::if_c<(Cat & category::mask) == category::bidirectional>>
-              : any_cursor_interface<Ref, category::forward>
+              : any_cursor_interface<Ref, (Cat & ~category::mask) | category::forward>
             {
                 virtual void prev() = 0;
             };
 
             template<typename Ref, category Cat>
             struct any_cursor_interface<Ref, Cat, meta::if_c<(Cat & category::mask) == category::random_access>>
-              : any_cursor_interface<Ref, category::bidirectional>
+              : any_cursor_interface<Ref, (Cat & ~category::mask) | category::bidirectional>
             {
                 virtual void advance(std::ptrdiff_t) = 0;
                 virtual std::ptrdiff_t distance_to(any_cursor_interface const &) const = 0;
@@ -310,7 +310,7 @@ namespace ranges
                   : it_{std::move(it)}
                 {}
             private:
-                using Forward = any_cursor_interface<Ref, category::forward>;
+                using Forward = any_cursor_interface<Ref, (Cat & ~category::mask) | category::forward>;
 
                 I it_;
 
@@ -586,7 +586,8 @@ namespace ranges
             }
         private:
             template<typename Rng>
-            using impl_t = detail::any_input_view_impl<view::all_t<Rng>, Ref>;
+            using impl_t = detail::any_input_view_impl<view::all_t<Rng>, Ref,
+                (Cat & category::sized) == category::sized>;
 
             detail::any_input_cursor<Ref> begin_cursor()
             {
@@ -597,7 +598,9 @@ namespace ranges
                 return detail::any_input_cursor<Ref>{*ptr_};
             }
 
-            std::shared_ptr<detail::any_input_view_interface<Ref>> ptr_;
+            std::shared_ptr<detail::any_input_view_interface<Ref,
+                (Cat & category::sized) == category::sized>>
+            ptr_;
         };
 
 #if RANGES_CXX_DEDUCTION_GUIDES >= RANGES_CXX_DEDUCTION_GUIDES_17
