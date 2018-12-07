@@ -12,6 +12,7 @@ project(Range-v3 CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Export compilation data-base
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 add_library(meta INTERFACE)
 target_include_directories(meta INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
@@ -27,17 +28,6 @@ include(TestHeaders)
 include(ranges_options)
 include(ranges_env)
 include(ranges_flags)
-
-# Test for <thread>
-try_compile(RANGE_V3_TRY_THREAD ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/thread_test_code.cpp)
-
-# Test for coroutine TS support
-include(CheckCXXSourceCompiles)
-
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/cmake/coro_test_code.cpp" RANGE_V3_CORO_TEST_CODE)
-set(CMAKE_REQUIRED_FLAGS "-fcoroutines-ts")
-check_cxx_source_compiles("${RANGE_V3_CORO_TEST_CODE}" RANGE_V3_HAS_FCOROUTINES_TS)
-unset(CMAKE_REQUIRED_FLAGS)
 
 if(RANGE_V3_DOCS)
   add_subdirectory(doc)
@@ -71,6 +61,9 @@ else()
   add_custom_target(headers SOURCES ${RANGE_V3_PUBLIC_HEADERS_ABSOLUTE})
 endif()
 generate_standalone_header_tests(EXCLUDE_FROM_ALL MASTER_TARGET headers HEADERS ${RANGE_V3_PUBLIC_HEADERS})
+set_target_properties(headers
+    PROPERTIES FOLDER "test/header"
+)
 
 # Grab the range-v3 version numbers:
 include(${CMAKE_CURRENT_SOURCE_DIR}/Version.cmake)

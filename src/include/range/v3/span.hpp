@@ -108,7 +108,7 @@ namespace ranges
         /// \endcond
 
         template<typename T, detail::span_index_t N = dynamic_extent>
-        struct span
+        struct RANGES_EMPTY_BASES span
           : public view_interface<span<T, N>,
                 (N == dynamic_extent ? finite : static_cast<cardinality>(N))>,
             public detail::span_extent<N>
@@ -141,10 +141,10 @@ namespace ranges
             using CompatibleRange =
                 meta::and_<meta::bool_<!Same<span, uncvref_t<Rng>>()>,
                     SizedRange<Rng>, ContiguousRange<Rng>,
-                    std::is_convertible<concepts::ContiguousRange::element_t<Rng>(*)[], T(*)[]>>;
+                    detail::is_convertible<concepts::ContiguousRange::element_t<Rng>(*)[], T(*)[]>>;
             template<typename Rng>
             using DynamicConversion = meta::bool_<
-                N == dynamic_extent || (range_cardinality<Rng>::value < cardinality{})>;
+                N == dynamic_extent || (range_cardinality<Rng>::value < cardinality())>;
 
             template<typename Rng,
                 // This multiple-CONCEPT_REQUIRES_ form works around a gcc 4.9 bug.
@@ -220,7 +220,7 @@ namespace ranges
                         data_ + Offset, Count == dynamic_extent ? size() - Offset : Count};
             }
             template<index_type Offset>
-            constexpr span<T, N >= Offset ? N - Offset : dynamic_extent> subspan() const noexcept
+            constexpr span<T, (N >= Offset ? N - Offset : dynamic_extent)> subspan() const noexcept
             {
                 static_assert(Offset >= 0,
                     "Offset of first element to extract cannot be negative.");
@@ -331,7 +331,7 @@ namespace ranges
             CONCEPT_REQUIRES_(ContiguousRange<Rng>())>
         span(Rng &&rng) ->
             span<concepts::ContiguousRange::element_t<Rng>,
-                (range_cardinality<Rng>::value < cardinality{}
+                (range_cardinality<Rng>::value < cardinality()
                     ? dynamic_extent
                     : static_cast<detail::span_index_t>(range_cardinality<Rng>::value))>;
 #endif
@@ -363,7 +363,7 @@ namespace ranges
         }
         template<typename Rng,
             CONCEPT_REQUIRES_(ContiguousRange<Rng>() &&
-                range_cardinality<Rng>::value < cardinality{})>
+                range_cardinality<Rng>::value < cardinality())>
         constexpr span<concepts::ContiguousRange::element_t<Rng>>
         make_span(Rng &&rng)
             noexcept(noexcept(ranges::data(rng), ranges::size(rng)))
@@ -373,7 +373,7 @@ namespace ranges
         }
         template<typename Rng,
             CONCEPT_REQUIRES_(ContiguousRange<Rng>() &&
-                range_cardinality<Rng>::value >= cardinality{})>
+                range_cardinality<Rng>::value >= cardinality())>
         constexpr span<concepts::ContiguousRange::element_t<Rng>,
             static_cast<detail::span_index_t>(range_cardinality<Rng>::value)>
         make_span(Rng &&rng)

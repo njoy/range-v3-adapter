@@ -309,9 +309,6 @@ namespace ranges
         #endif
 
             // Work around libc++'s buggy std::is_function
-        #if !defined(_LIBCPP_VERSION) || _LIBCPP_VERSION >= 3800
-            using std::is_function;
-        #else
             // Function types here:
             template<typename T>
             char (&is_function_impl_(priority_tag<0>))[1];
@@ -333,7 +330,6 @@ namespace ranges
             struct is_function
               : meta::bool_<sizeof(detail::is_function_impl_<T>(priority_tag<3>{})) == 1>
             {};
-        #endif
 
             template<typename T>
             struct remove_rvalue_reference
@@ -349,6 +345,14 @@ namespace ranges
 
             template<typename T>
             using remove_rvalue_reference_t = meta::_t<remove_rvalue_reference<T>>;
+
+            // Workaround bug in the Standard Library:
+            // From cannot be an incomplete class type despite that
+            // is_convertible<X, Y> should be equivalent to is_convertible<X&&, Y>
+            // in such a case.
+            template<typename From, typename To>
+            using is_convertible =
+                std::is_convertible<meta::_t<std::add_rvalue_reference<From>>, To>;
         }
         /// \endcond
 
@@ -402,7 +406,7 @@ namespace ranges
         struct basic_mixin;
 
         template<typename Cur>
-        struct basic_iterator;
+        struct RANGES_EMPTY_BASES basic_iterator;
 
         template<cardinality>
         struct basic_view : view_base
@@ -444,7 +448,7 @@ namespace ranges
     #endif
 
         template<typename I, typename S = I>
-        struct iterator_range;
+        struct RANGES_EMPTY_BASES iterator_range;
 
         template<typename I, typename S = I>
         struct sized_iterator_range;
@@ -458,7 +462,7 @@ namespace ranges
         // Views
         //
         template<typename Rng, typename Pred>
-        struct adjacent_filter_view;
+        struct RANGES_EMPTY_BASES adjacent_filter_view;
 
         namespace view
         {
@@ -466,7 +470,7 @@ namespace ranges
         }
 
         template<typename Rng, typename Pred>
-        struct adjacent_remove_if_view;
+        struct RANGES_EMPTY_BASES adjacent_remove_if_view;
 
         namespace view
         {
@@ -476,14 +480,6 @@ namespace ranges
         namespace view
         {
             struct all_fn;
-        }
-
-        template<typename Rng>
-        struct bounded_view;
-
-        namespace view
-        {
-            struct bounded_fn;
         }
 
         template<typename Rng>
@@ -511,8 +507,8 @@ namespace ranges
         using move_into_iterator =
             basic_iterator<detail::move_into_cursor<I>>;
 
-        template<typename Rng>
-        struct cycled_view;
+        template<typename Rng, bool = (bool) is_infinite<Rng>()>
+        struct RANGES_EMPTY_BASES cycled_view;
 
         namespace view
         {
@@ -614,7 +610,7 @@ namespace ranges
         }
 
         template<typename Rng>
-        struct reverse_view;
+        struct RANGES_EMPTY_BASES reverse_view;
 
         namespace view
         {
