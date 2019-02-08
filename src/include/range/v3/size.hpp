@@ -34,6 +34,10 @@ namespace ranges
             template<typename T>
             void size(T const &) = delete;
 
+#ifdef RANGES_WORKAROUND_MSVC_620035
+            void size();
+#endif
+
             struct fn : iter_size_fn
             {
             private:
@@ -65,7 +69,8 @@ namespace ranges
                     size(r)
                 )
 
-                template<typename R, typename I = decltype(ranges::cbegin(std::declval<R &>())),
+                template<typename R,
+                    typename I = decltype(ranges::cbegin(std::declval<R &>())),
                     CONCEPT_REQUIRES_(ForwardIterator<I>())>
                 static RANGES_CXX14_CONSTEXPR auto impl_(R &r, ...)
                 RANGES_DECLTYPE_AUTO_RETURN_NOEXCEPT

@@ -1,19 +1,6 @@
 include(../cmake/ranges_diagnostics.cmake)
 
-add_library(rv3-tests INTERFACE)
-target_link_libraries(rv3-tests INTERFACE range-v3)
-if(NOT RANGE_V3_TRY_THREAD)
-    target_compile_definitions(rv3-tests INTERFACE "RANGES_CXX_THREAD=0")
-endif()
-if (RANGE_V3_HAS_FCOROUTINES_TS)
-    target_compile_options(rv3-tests INTERFACE "-fcoroutines-ts")
-endif()
-
-function(rv3_add_test TESTNAME EXENAME FIRSTSOURCE)
-  add_executable(${EXENAME} ${FIRSTSOURCE} ${ARGN})
-  target_link_libraries(${EXENAME} rv3-tests)
-  add_test(${TESTNAME} ${EXENAME})
-endfunction(rv3_add_test)
+set(CMAKE_FOLDER "test")
 
 add_subdirectory(action)
 add_subdirectory(algorithm)

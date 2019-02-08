@@ -20,7 +20,7 @@
 #include <range/v3/range_fwd.hpp>
 #include <range/v3/range_traits.hpp>
 #include <range/v3/range_concepts.hpp>
-#include <range/v3/view_interface.hpp>
+#include <range/v3/view_facade.hpp>
 #include <range/v3/iterator_range.hpp>
 #include <range/v3/utility/counted_iterator.hpp>
 #include <range/v3/utility/functional.hpp>
@@ -168,18 +168,6 @@ namespace ranges
                     return rng_;
                 }
             };
-        }
-        /// \endcond
-
-        /// \cond
-        namespace _end_
-        {
-            template<typename Int, CONCEPT_REQUIRES_(Integral<Int>())>
-            detail::from_end_<meta::_t<std::make_signed<Int>>> operator-(end_fn, Int dist)
-            {
-                RANGES_EXPECT(0 <= static_cast<meta::_t<std::make_signed<Int>>>(dist));
-                return {-static_cast<meta::_t<std::make_signed<Int>>>(dist)};
-            }
         }
         /// \endcond
 
