@@ -50,13 +50,20 @@ namespace ranges
               : adaptor_base
             {
             private:
+                friend struct sentinel_adaptor<!IsConst>;
+                using CRng = meta::const_if_c<IsConst, Rng>;
                 semiregular_ref_or_val_t<Pred, IsConst> pred_;
             public:
                 sentinel_adaptor() = default;
                 sentinel_adaptor(semiregular_ref_or_val_t<Pred, IsConst> pred)
                   : pred_(std::move(pred))
                 {}
-                bool empty(iterator_t<Rng> it, sentinel_t<Rng> end) const
+                template<bool Other,
+                    CONCEPT_REQUIRES_(IsConst && !Other)>
+                sentinel_adaptor(sentinel_adaptor<Other> that)
+                  : pred_(std::move(that.pred_))
+                {}
+                bool empty(iterator_t<CRng> const &it, sentinel_t<CRng> const &end) const
                 {
                     return it == end || !invoke(pred_, it);
                 }
@@ -65,7 +72,8 @@ namespace ranges
             {
                 return {pred_};
             }
-            CONCEPT_REQUIRES(Invocable<Pred const&, iterator_t<Rng>>())
+            template<typename CRng = Rng const,
+                CONCEPT_REQUIRES_(Range<CRng>() && Invocable<Pred const&, iterator_t<CRng>>())>
             sentinel_adaptor<true> end_adaptor() const
             {
                 return {pred_};
@@ -144,11 +152,19 @@ namespace ranges
                     make_pipeable(std::bind(take_while, std::placeholders::_1,
                         protect(std::move(pred))))
                 )
+
+                template<typename Pred, typename Proj>
+                static auto bind(take_while_fn take_while, Pred pred, Proj proj)
+                RANGES_DECLTYPE_AUTO_RETURN_NOEXCEPT
+                (
+                    make_pipeable(std::bind(take_while, std::placeholders::_1,
+                        protect(std::move(pred)), protect(std::move(proj))))
+                )
             public:
-                template<typename Rng, typename Pred>
+                template<typename Rng, typename Pred, typename Proj = ident>
                 using Concept = meta::and_<
                     InputRange<Rng>,
-                    IndirectPredicate<Pred, iterator_t<Rng>>>;
+                    IndirectPredicate<Pred, projected<iterator_t<Rng>, Proj>>>;
 
                 template<typename Rng, typename Pred,
                     CONCEPT_REQUIRES_(Concept<Rng, Pred>())>
@@ -156,6 +172,18 @@ namespace ranges
                 {
                     return {all(static_cast<Rng&&>(rng)), std::move(pred)};
                 }
+
+                template<typename Rng, typename Pred, typename Proj,
+                    CONCEPT_REQUIRES_(Concept<Rng, Pred, Proj>())>
+                RANGES_CXX14_CONSTEXPR
+                auto operator()(Rng &&rng, Pred pred, Proj proj) const
+                RANGES_DECLTYPE_AUTO_RETURN_NOEXCEPT
+                (
+                    take_while_view<all_t<Rng>, composed<Pred, Proj>>{
+                        all(static_cast<Rng&&>(rng)),
+                        compose(std::move(pred), std::move(proj))
+                    }
+                )
             #ifndef RANGES_DOXYGEN_INVOKED
                 template<typename Rng, typename Pred,
                     CONCEPT_REQUIRES_(!Concept<Rng, Pred>())>
@@ -165,9 +193,25 @@ namespace ranges
                         "The object on which view::take_while operates must be a model of the "
                         "InputRange concept.");
                     CONCEPT_ASSERT_MSG(IndirectPredicate<Pred, iterator_t<Rng>>(),
-                        "The function passed to view::take_while must be callable with objects of "
-                        "the range's common reference type, and its result type must be "
+                        "The function passed to view::take_while must be callable with arguments "
+                        "of the range's common reference type, and its result type must be "
                         "convertible to bool.");
+                }
+
+                template<typename Rng, typename Pred, typename Proj,
+                    CONCEPT_REQUIRES_(!Concept<Rng, Pred, Proj>())>
+                void operator()(Rng &&, Pred, Proj) const
+                {
+                    CONCEPT_ASSERT_MSG(InputRange<Rng>(),
+                        "The object on which view::take_while operates must be a model of the "
+                        "InputRange concept.");
+                    using Itr = iterator_t<Rng>;
+                    CONCEPT_ASSERT_MSG(IndirectInvocable<Proj, Itr>(),
+                        "The projection function must accept arguments of the iterator's "
+                        "value type, reference type, and common reference type.");
+                    CONCEPT_ASSERT_MSG(IndirectPredicate<Pred, projected<Itr, Proj>>(),
+                        "The second argument to view::take_while must accept "
+                        "values returned by the projection function.");
                 }
             #endif
             };

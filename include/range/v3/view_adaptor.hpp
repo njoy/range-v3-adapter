@@ -33,11 +33,11 @@ namespace ranges
         {
             template<typename Derived>
             using begin_adaptor_t =
-                detail::decay_t<decltype(range_access::begin_adaptor(std::declval<Derived &>(), 42))>;
+                detail::decay_t<decltype(range_access::begin_adaptor(std::declval<Derived &>()))>;
 
             template<typename Derived>
             using end_adaptor_t =
-                detail::decay_t<decltype(range_access::end_adaptor(std::declval<Derived &>(), 42))>;
+                detail::decay_t<decltype(range_access::end_adaptor(std::declval<Derived &>()))>;
 
             template<typename Derived>
             using adapted_iterator_t =
@@ -80,7 +80,11 @@ namespace ranges
               : compressed_pair<BaseIter, Adapt>
             {
                 using compressed_pair<BaseIter, Adapt>::compressed_pair;
+#ifdef RANGES_WORKAROUND_MSVC_688606
+                using value_type = value_type_t<Adapt>;
+#else // ^^^ workaround ^^^ / vvv no workaround vvv
                 using value_type = typename Adapt::value_type;
+#endif // RANGES_WORKAROUND_MSVC_688606
             };
         }
         /// \endcond
@@ -307,8 +311,8 @@ namespace ranges
             }
             // If the adaptor has an iter_move function, use it.
             template<typename A = Adapt, typename X = decltype(
-                std::declval<A const&>().iter_move(
-                    std::declval<BaseIter const&>()))>
+                std::declval<A const &>().iter_move(
+                    std::declval<BaseIter const &>()))>
             X iter_move_(int) const
                 noexcept(noexcept(std::declval<A const &>().iter_move(
                     std::declval<BaseIter const &>())))
@@ -338,7 +342,7 @@ namespace ranges
                 return ranges::iter_move(first());
             }
             // If the adaptor does not have an iter_move function but overrides the read
-            // member function, apply std::move to the result of calling current.
+            // member function, apply std::move to the result of calling read.
             template<typename A = Adapt,
                 typename R = decltype(std::declval<A const &>().read(std::declval<BaseIter const &>())),
                 typename X = aux::move_t<R>>
@@ -405,9 +409,9 @@ namespace ranges
             static RANGES_CXX14_CONSTEXPR adaptor_cursor_t<D> begin_cursor_(D &d)
                 noexcept(noexcept(adaptor_cursor_t<D>{
                     std::declval<detail::begin_adaptor_t<D> &>().begin(d),
-                    range_access::begin_adaptor(d, 42)}))
+                    range_access::begin_adaptor(d)}))
             {
-                auto adapt = range_access::begin_adaptor(d, 42);
+                auto adapt = range_access::begin_adaptor(d);
                 auto pos = adapt.begin(d);
                 return {std::move(pos), std::move(adapt)};
             }
@@ -429,9 +433,9 @@ namespace ranges
             static RANGES_CXX14_CONSTEXPR adaptor_sentinel_t<D> end_cursor_(D &d)
                 noexcept(noexcept(adaptor_sentinel_t<D>{
                     std::declval<detail::end_adaptor_t<D> &>().end(d),
-                    range_access::end_adaptor(d, 42)}))
+                    range_access::end_adaptor(d)}))
             {
-                auto adapt = range_access::end_adaptor(d, 42);
+                auto adapt = range_access::end_adaptor(d);
                 auto pos = adapt.end(d);
                 return {std::move(pos), std::move(adapt)};
             }

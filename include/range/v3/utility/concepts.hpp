@@ -104,7 +104,8 @@ namespace ranges
             auto models_(any) ->
                 std::false_type;
 
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 5 && __GNUC_MINOR__ < 5
+#if (defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 5 && __GNUC_MINOR__ < 5) || \
+    defined(RANGES_WORKAROUND_MSVC_701425)
             template<typename T>
             T gcc_bugs_bugs_bugs(T);
 
@@ -225,6 +226,15 @@ namespace ranges
             // Core language concepts
             ////////////////////////////////////////////////////////////////////////////////////////////
 
+            struct Satisfies
+            {
+                template<typename T, typename Trait, typename ...Ts>
+                auto requires_() -> decltype(
+                    concepts::valid_expr(
+                        concepts::is_true(meta::invoke<Trait, T, Ts...>{})
+                    ));
+            };
+
             struct Same
             {
                 template<typename ...Ts>
@@ -247,7 +257,7 @@ namespace ranges
                 template<typename From, typename To>
                 auto requires_() -> decltype(
                     concepts::valid_expr(
-                        concepts::is_true(std::is_convertible<From, To>{})
+                        concepts::is_true(detail::is_convertible<From, To>{})
                     ));
             };
 
@@ -271,7 +281,7 @@ namespace ranges
                 auto requires_() -> decltype(
                     concepts::valid_expr(
                         concepts::is_true(std::is_base_of<U, T>{}),
-                        concepts::is_true(std::is_convertible<
+                        concepts::is_true(detail::is_convertible<
                             meta::_t<std::remove_cv<T>> *, meta::_t<std::remove_cv<U>> *>{})
                     ));
             };
@@ -579,6 +589,9 @@ namespace ranges
               : refines<SemiRegular, EqualityComparable>
             {};
         }
+
+        template<typename T, template<typename...> class Trait, typename ...Ts>
+        using Satisfies = concepts::models<concepts::Satisfies, T, meta::quote<Trait>, Ts...>;
 
         template<typename ...Ts>
         using Same = concepts::Same::same_t<Ts...>; // This handles void better than using the Same concept

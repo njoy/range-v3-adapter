@@ -291,6 +291,108 @@ sentinel. That is only necessary if the underlying range's sentinel type models
 BidirectionalIterator. That's a finer point that you shouldn't worry about right
 now.)*
 
+## Create Custom Iterators
+
+Here is an example of Range v3 compatible RandomAccess proxy iterator.
+The iterator returns a key/value pair, like the `zip` view.
+
+~~~~~~~{.cpp}
+    #include <range/v3/utility/basic_iterator.hpp>
+    #include <range/v3/utility/common_tuple.hpp>
+
+    using KeyIter   = typename std::vector<Key>::iterator;
+    using ValueIter = typename std::vector<Value>::iterator;
+
+    struct cursor {
+
+        // basic_iterator derives from "mixin", if present, so it can be used
+        // to inject things into the public interface of the iterator
+        struct mixin;
+
+        // This is for dereference operator.      
+        using value_type = std::pair<Key, Value>; 
+        ranges::common_pair<Key&, Value&> read() const {
+            return { *key_iterator, *value_iterator };
+        }
+
+        bool equal(const cursor& other) const {
+            return key_iterator == other.key_iterator;
+        }
+
+        void next() { 
+            ++key_iterator;
+            ++value_iterator;
+        }
+
+        // prev optional. Required for Bidirectional iterator
+        void prev() { 
+            --key_iterator;
+            --value_iterator;
+        }
+
+        // advance and distance_to are optional. Required for RandomAcess iterator
+        void advance(std::ptrdiff_t n) { 
+            key_iterator   += n;
+            value_iterator += n;
+        }
+        std::ptrdiff_t distance_to(const cursor& other) const {
+            return other.key_iterator - this->key_iterator;
+        }
+
+        cursor() = default;
+        cursor(KeyIter key_iterator, ValueIter value_iterator)
+            : key_iterator(key_iterator)
+            , value_iterator(value_iterator)
+        {}
+
+        KeyIter   key_iterator;
+        ValueIter value_iterator;
+    };
+
+    struct cursor::mixin : ranges::basic_mixin<cursor>
+    {
+      using ranges::basic_mixin<cursor>::basic_mixin;
+
+      // It is necessary to expose constructor in this way
+      mixin(KeyIter key_iterator, ValueIter value_iterator)
+        : mixin{ cursor(key_iterator, value_iterator) }
+      {}
+
+      KeyIter key_iterator() {
+        return this->get().key_iterator;
+      }
+      ValueIter value_iterator() {
+        return this->get().value_iterator;
+      }
+    };    
+
+    using iterator = ranges::basic_iterator<cursor>;
+
+    void test(){
+      std::vector<Key>   keys   = {1};
+      std::vector<Value> values = {10};
+      
+      iterator iter(keys.begin(), values.begin());
+      ranges::common_pair<Key&, Value&> pair = *iter;
+      Key&   key   = pair.first;
+      Value& value = pair.second;
+
+      assert(&key   == &keys[0]);
+      assert(&value == &values[0]);      
+
+      auto key_iter = iter.key_iterator();
+      assert(key_iter == keys.begin());
+    }
+~~~~~~~
+
+`read()` returns references. So, we explicitly specify `value_type`.  
+ `ranges::common_pair` has conversions:  
+`ranges::common_pair<Key&, Value&>` <=> `ranges::common_pair<Key, Value>`.  
+All `ranges::common_pair`s converts to their `std::pair` equivalents, also.
+
+For more information, see [http://wg21.link/P0186#basic-iterators-iterators.basic](http://wg21.link/P0186#basic-iterators-iterators.basic)
+
+
 ## Constrain Functions with Concepts
 
 The Range v3 library makes heavy use of concepts to constrain functions, control
@@ -389,6 +491,8 @@ provides, and a blurb about how each is intended to be used.
   <DD>Remove elements from the front of a range that satisfy a unary predicate.</DD>
 <DT>\link ranges::v3::view::empty() `view::empty`\endlink</DT>
   <DD>Create an empty range with a given value type.</DD>
+<DT>\link ranges::v3::view::enumerate() `view::enumerate`\endlink</DT>
+  <DD>Pair each element of a range with its index.</DD>
 <DT>\link ranges::v3::view::filter_fn `view::filter`\endlink</DT>
   <DD>Given a source range and a unary predicate, filter the elements that satisfy the predicate. (For users of Boost.Range, this is like the `filter` adaptor.)</DD>
 <DT>\link ranges::v3::view::for_each_fn `view::for_each`\endlink</DT>
@@ -419,6 +523,8 @@ provides, and a blurb about how each is intended to be used.
   <DD>Given a range and a binary function, return a new range where the *N*<SUP>th</SUP> element is the result of applying the function to the *N*<SUP>th</SUP> element from the source range and the (N-1)th element from the result range.</DD>
 <DT>\link ranges::v3::view::remove_if_fn `view::remove_if`\endlink</DT>
   <DD>Given a source range and a unary predicate, filter out those elements that do not satisfy the predicate. (For users of Boost.Range, this is like the `filter` adaptor with the predicate negated.)</DD>
+<DT>\link ranges::v3::view::remove_fn `view::remove`\endlink</DT>
+  <DD>Given a source range and a value, filter out those elements that do not equal value.</DD>
 <DT>\link ranges::v3::view::repeat_fn `view::repeat`\endlink</DT>
   <DD>Given a value, create a range that is that value repeated infinitely.</DD>
 <DT>\link ranges::v3::view::repeat_n_fn `view::repeat_n`\endlink</DT>
@@ -488,6 +594,8 @@ Below is a list of the eager range combinators, or *actions*, that Range v3 prov
   <DD>Appends elements before the head of the source.</DD>
 <DT>\link ranges::v3::action::remove_if_fn `action::remove_if`\endlink</DT>
   <DD>Removes all elements from the source that satisfy the predicate.</DD>
+<DT>\link ranges::v3::action::unstable_remove_if_fn `action::unstable_remove_if`\endlink</DT>
+  <DD>Much faster (each element remove has constant time complexity), unordered version of `remove_if`. Requires bidirectional container.</DD>
 <DT>\link ranges::v3::action::shuffle_fn `action::shuffle`\endlink</DT>
   <DD>Shuffles the source range.</DD>
 <DT>\link ranges::v3::action::slice_fn `action::slice`\endlink</DT>

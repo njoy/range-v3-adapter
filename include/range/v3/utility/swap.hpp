@@ -34,10 +34,10 @@ namespace ranges
         {
             template<typename T>
             struct is_movable_
-              : meta::and_<
-                    std::is_object<T>,
-                    std::is_move_constructible<T>,
-                    std::is_move_assignable<T>>
+              : meta::bool_<
+                    std::is_object<T>::value &&
+                    std::is_move_constructible<T>::value &&
+                    std::is_move_assignable<T>::value>
             {};
         }
         /// \endcond
@@ -86,6 +86,10 @@ namespace ranges
             template<typename T, std::size_t N>
             void swap(T (&)[N], T (&)[N]) = delete;
 
+#ifdef RANGES_WORKAROUND_MSVC_620035
+            void swap();
+#endif
+
             template<typename T, typename U,
                 typename = decltype(swap(std::declval<T>(), std::declval<U>()))>
             std::true_type try_adl_swap_(int);
@@ -110,7 +114,7 @@ namespace ranges
                     (void) swap((T &&) t, (U &&) u)
                 )
 
-                // For instrinsicly swappable (i.e., movable) types for which
+                // For intrinsically swappable (i.e., movable) types for which
                 // a swap overload cannot be found via ADL, swap by moving.
                 template<typename T>
                 RANGES_CXX14_CONSTEXPR
@@ -123,7 +127,7 @@ namespace ranges
                     (void)(b = ranges::exchange(a, (T &&) b))
                 )
 
-                // For arrays of instrinsicly swappable (i.e., movable) types
+                // For arrays of intrinsically swappable (i.e., movable) types
                 // for which a swap overload cannot be found via ADL, swap array
                 // elements by moving.
                 template<typename T, typename U, std::size_t N>
@@ -212,6 +216,10 @@ namespace ranges
             // (possibly) unconstrained.
             template<typename T>
             void iter_swap(T, T) = delete;
+
+#ifdef RANGES_WORKAROUND_MSVC_620035
+            void iter_swap();
+#endif
 
             template<typename T, typename U,
                 typename = decltype(iter_swap(std::declval<T>(), std::declval<U>()))>
