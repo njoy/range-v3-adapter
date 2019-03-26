@@ -47,7 +47,8 @@ namespace ranges
                 sentinel_adaptor(Val value)
                   : value_(std::move(value))
                 {}
-                bool empty(iterator_t<Rng> it, sentinel_t<Rng> end) const
+                template<class I, class S>
+                bool empty(I const &it, S const &end) const
                 {
                     return it == end || *it == value_;
                 }
@@ -81,8 +82,9 @@ namespace ranges
             public:
                 template<typename Rng, typename Val>
                 using Concept = meta::and_<
-                    Range<Rng>,
-                    EqualityComparable<Val, range_common_reference_t<Rng>>>;
+                    InputRange<Rng>,
+                    SemiRegular<Val>,
+                    EqualityComparable<Val, range_reference_t<Rng>>>;
 
                 template<typename Rng, typename Val,
                     CONCEPT_REQUIRES_(Concept<Rng, Val>())>
@@ -97,9 +99,11 @@ namespace ranges
                 void
                 operator()(Rng &&, Val) const
                 {
-                    CONCEPT_ASSERT_MSG(Range<Rng>(),
-                        "Rng must model the Range concept");
-                    CONCEPT_ASSERT_MSG(EqualityComparable<Val, range_common_reference_t<Rng>>(),
+                    CONCEPT_ASSERT_MSG(InputRange<Rng>(),
+                        "Rng must model the InputRange concept");
+                    CONCEPT_ASSERT_MSG(SemiRegular<Val>(),
+                        "The delimiting value type must be SemiRegular.");
+                    CONCEPT_ASSERT_MSG(EqualityComparable<Val, range_reference_t<Rng>>(),
                         "The delimiting value type must be EqualityComparable to the "
                         "range's common reference type.");
                 }
@@ -110,12 +114,14 @@ namespace ranges
             {
                 using view<delimit_impl_fn>::operator();
 
-                template<typename I, typename Val,
-                    CONCEPT_REQUIRES_(InputIterator<I>())>
+                template<typename I_, typename Val, typename I = detail::decay_t<I_>,
+                    CONCEPT_REQUIRES_(!Range<I_>() && ConvertibleTo<I_, I>() &&
+                        InputIterator<I>() && SemiRegular<Val>() &&
+                        EqualityComparable<Val, reference_t<I>>())>
                 delimit_view<iterator_range<I, unreachable>, Val>
-                operator()(I begin, Val value) const
+                operator()(I_ && begin_, Val value) const
                 {
-                    return {{std::move(begin), {}}, std::move(value)};
+                    return {{static_cast<I_ &&>(begin_), {}}, std::move(value)};
                 }
             };
 

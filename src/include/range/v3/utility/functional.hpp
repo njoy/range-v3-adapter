@@ -352,9 +352,6 @@ namespace ranges
 #endif // GCC
         };
 
-        template<typename Pred>
-        using logical_negate = logical_negate_<detail::decay_t<Pred>>;
-
         struct not_fn_fn
         {
             template<typename Pred, typename FD = detail::decay_t<Pred>,
@@ -626,7 +623,7 @@ namespace ranges
         namespace detail
         {
             template<typename Bind>
-            struct pipeable_binder
+            struct RANGES_EMPTY_BASES pipeable_binder
               : Bind
               , pipeable<pipeable_binder<Bind>>
             {

@@ -109,17 +109,6 @@ int main()
         ::check_equal(expected, {"ax","by","cz"});
     }
 
-    // zip_with
-    {
-        std::vector<std::string> v0{"a","b","c"};
-        std::vector<std::string> v1{"x","y","z"};
-
-        auto rng = view::zip_with(std::plus<std::string>{}, v0, v1);
-        std::vector<std::string> expected;
-        copy(rng, ranges::back_inserter(expected));
-        ::check_equal(expected, {"ax","by","cz"});
-    }
-
     // Move from a zip view
     {
         auto v0 = to_<std::vector<MoveOnlyString>>({"a","b","c"});
@@ -233,6 +222,17 @@ int main()
         );
         using P = std::pair<int, int>;
         ::check_equal(rng, {P{0,4},P{1,5}, P{2,6}, P{3,7}});
+    }
+
+    {
+        // Test with no ranges
+        auto rng = view::zip();
+        using R = decltype(rng);
+        CONCEPT_ASSERT(Same<range_value_type_t<R>, std::tuple<>>());
+        CONCEPT_ASSERT(ContiguousRange<R>());
+        static_assert(ranges::range_cardinality<R>::value == ranges::cardinality(0), "");
+        CHECK(ranges::begin(rng) == ranges::end(rng));
+        CHECK(ranges::size(rng) == 0u);
     }
 
     return test_result();

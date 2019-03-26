@@ -22,6 +22,7 @@
 #include <range/v3/view/cartesian_product.hpp>
 #include <range/v3/view/chunk.hpp>
 #include <range/v3/view/empty.hpp>
+#include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/take_exactly.hpp>
@@ -45,13 +46,13 @@ struct printer {
     }
 };
 
-namespace ranges {
+namespace std {
     template<typename... Ts>
     std::ostream &operator<<(std::ostream &os, std::tuple<Ts...> const &t)
     {
         os << '(';
         auto first = true;
-        tuple_for_each(t, printer{os, first});
+        ::ranges::tuple_for_each(t, ::printer{os, first});
         os << ')';
         return os;
     }
@@ -75,7 +76,7 @@ void test_empty_set()
         std::tuple<>>());
     CONCEPT_ASSERT(std::is_same<
         range_reference_t<Rng>,
-        common_tuple<>>());
+        std::tuple<>&>());
 
     std::initializer_list<common_tuple<>> control{};
     ::check_equal(rng, control);
@@ -83,7 +84,7 @@ void test_empty_set()
 
     auto const first = begin(rng);
     auto const last = end(rng);
-    CHECK((last - first) == static_cast<std::ptrdiff_t>(size(rng)));
+    CHECK(decltype(size(rng))(last - first) == size(rng));
     for(auto i = 0; i <= distance(rng); ++i)
     {
         for(auto j = 0; j <= distance(rng); ++j)
@@ -115,7 +116,7 @@ void test_empty_range()
         std::tuple<int, char>>());
     CONCEPT_ASSERT(std::is_same<
         range_reference_t<Rng>,
-        common_tuple<int &, char const &>>());
+        common_tuple<int &, char &>>());
 
     using CT = common_tuple<int, char>;
     std::initializer_list<CT> control = {};
@@ -125,7 +126,7 @@ void test_empty_range()
 
     auto const first = begin(rng);
     auto const last = end(rng);
-    CHECK((last - first) == static_cast<std::ptrdiff_t>(size(rng)));
+    CHECK((last - first) == size(rng));
     for(auto i = 0; i <= distance(rng); ++i)
     {
         for(auto j = 0; j <= distance(rng); ++j)
@@ -200,6 +201,26 @@ void test_bug_823()
     }
 }
 
+void test_bug_919()
+{
+    // https://github.com/ericniebler/range-v3/issues/919
+    int some_ints[] = {0,1,2,3};
+    char const * some_strings[] = {"John", "Paul", "George", "Ringo"};
+    auto rng = view::cartesian_product(
+        span<int, size(some_ints)>{some_ints},
+        span<char const*, size(some_strings)>{some_strings}
+    );
+    constexpr std::intmax_t n = size(rng);
+    CONCEPT_ASSERT(n == 16);
+
+    for (std::intmax_t i = 0; i <= n; ++i) {
+        auto const x = rng.begin() + i;
+        CHECK((x == rng.end() - (n - i)));
+        for (std::intmax_t j = 0; j <= n; ++j)
+            CHECK((rng.begin() + j == x + (j - i)));
+    }
+}
+
 int main()
 {
     int some_ints[] = {0,1,2,3};
@@ -216,7 +237,7 @@ int main()
     CONCEPT_ASSERT(RandomAccessView<Rng>());
     CONCEPT_ASSERT(BoundedRange<Rng>());
     CONCEPT_ASSERT(SizedRange<Rng>());
-    CHECK(size(rng) == size(some_ints) * size(some_strings));
+    CHECK(size(rng) == static_cast<std::intmax_t>(size(some_ints) * size(some_strings)));
 
     CONCEPT_ASSERT(std::is_same<
         range_value_type_t<Rng>,
@@ -238,7 +259,7 @@ int main()
 
     auto const first = begin(rng);
     auto const last = end(rng);
-    CHECK((last - first) == static_cast<std::ptrdiff_t>(size(rng)));
+    CHECK((last - first) == size(rng));
     for(auto i = 0; i <= distance(rng); ++i)
     {
         for(auto j = 0; j <= distance(rng); ++j)
@@ -251,6 +272,13 @@ int main()
     test_empty_range();
     test_bug_820();
     test_bug_823();
+    test_bug_919();
+
+    {
+        static constexpr int data[] = {1};
+        ranges::view::cartesian_product(data |
+            ranges::view::filter([](int) { return true; }));
+    }
 
     return test_result();
 }

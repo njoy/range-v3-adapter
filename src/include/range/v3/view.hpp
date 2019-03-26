@@ -34,6 +34,7 @@ RANGES_DISABLE_WARNINGS
 #include <range/v3/view/drop_exactly.hpp>
 #include <range/v3/view/drop_while.hpp>
 #include <range/v3/view/empty.hpp>
+#include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/generate.hpp>
@@ -41,6 +42,7 @@ RANGES_DISABLE_WARNINGS
 #include <range/v3/view/group_by.hpp>
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/indirect.hpp>
+#include <range/v3/view/addressof.hpp>
 #include <range/v3/view/intersperse.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/join.hpp>
