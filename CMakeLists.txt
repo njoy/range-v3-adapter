@@ -1,39 +1,72 @@
+########################################################################
+# Preamble
+########################################################################
 
-cmake_minimum_required( VERSION 3.2 ) 
-set( CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Supported configuration types" FORCE )
-        
+cmake_minimum_required( VERSION 3.14 )
 project( range-v3-adapter LANGUAGES CXX )
-get_directory_property( is_subproject PARENT_DIRECTORY )
-include( CMakeDependentOption REQUIRED )
 
-if ( NOT GIT_EXECUTABLE )
-    find_package( Git )
-    if ( NOT GIT_FOUND )
-        message( FATAL_ERROR "git installation was not found." )
+
+########################################################################
+# Project-wide setup
+########################################################################
+
+set( CMAKE_CXX_STANDARD 17 )
+set( CMAKE_CXX_STANDARD_REQUIRED YES )
+
+option( range-v3-adapter_unit_tests
+    "Compile the range-v3-adapter unit tests and integrate with ctest" ON
+    )
+option( strict_compile
+    "Treat all warnings as errors." ON
+    )
+
+# Compile flags
+set( common_flags "-Wall" "-Wextra" "-Wpedantic" )
+set( strict_flags "-Werror" )
+set( release_flags "-O3" )
+set( debug_flags "-O0" "-g" )
+
+
+########################################################################
+# Project targets
+########################################################################
+
+add_library( range-v3-adapter 
+    src/cmake/aligned_new_probe.cpp
+    src/cmake/coro_test_code.cpp
+    src/example/any_all_none_of.cpp
+    src/example/calendar.cpp
+    src/example/comprehensions.cpp
+    src/example/count.cpp
+    src/example/count_if.cpp
+    src/example/fibonacci.cpp
+    src/example/find.cpp
+    src/example/for_each_assoc.cpp
+    src/example/for_each_sequence.cpp
+    src/example/hello.cpp
+    src/example/is_sorted.cpp
+    src/perf/counted_insertion_sort.cpp
+    src/perf/sort_patterns.cpp
+    src/test_package/example.cpp
+    )
+target_include_directories( range-v3-adapter PUBLIC src/ )
+target_compile_options( range-v3-adapter PRIVATE
+    ${common_flags}
+    $<$<BOOL:${strict_compile}>:${strict_flags}>
+    $<$<CONFIG:DEBUG>:${debug_flags}>
+    $<$<CONFIG:RELEASE>:${release_flags}>
+    )
+
+
+#######################################################################
+# Top-level Only
+#######################################################################
+
+if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+
+    # unit testing
+    if( range-v3-adapter_unit_tests )
+        include( cmake/unit_testing.cmake )
     endif()
+
 endif()
-
-execute_process(
-    COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    OUTPUT_VARIABLE GIT_BRANCH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-execute_process(
-    COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    OUTPUT_VARIABLE GIT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-) 
-
-message( STATUS "" )
-message( STATUS "-----------------------------------------------------------" )
-message( STATUS "" )
-message( STATUS "range-v3-adapter" )
-message( STATUS "Git current branch: ${GIT_BRANCH}" )
-message( STATUS "Git commit hash: ${GIT_HASH}" )
-message( STATUS "" )
-message( STATUS "-----------------------------------------------------------" )
-
-add_library( range-v3-adapter INTERFACE )
-target_include_directories( range-v3-adapter INTERFACE src/include )
