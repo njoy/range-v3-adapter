@@ -31,26 +31,10 @@ set( debug_flags "-O0" "-g" )
 # Project targets
 ########################################################################
 
-add_library( range-v3-adapter 
-    src/cmake/aligned_new_probe.cpp
-    src/cmake/coro_test_code.cpp
-    src/example/any_all_none_of.cpp
-    src/example/calendar.cpp
-    src/example/comprehensions.cpp
-    src/example/count.cpp
-    src/example/count_if.cpp
-    src/example/fibonacci.cpp
-    src/example/find.cpp
-    src/example/for_each_assoc.cpp
-    src/example/for_each_sequence.cpp
-    src/example/hello.cpp
-    src/example/is_sorted.cpp
-    src/perf/counted_insertion_sort.cpp
-    src/perf/sort_patterns.cpp
-    src/test_package/example.cpp
-    )
-target_include_directories( range-v3-adapter PUBLIC src/ )
-target_compile_options( range-v3-adapter PRIVATE
+add_library( range-v3-adapter INTERFACE )
+target_include_directories( range-v3-adapter
+    INTERFACE src/include )
+target_compile_options( range-v3-adapter INTERFACE
     ${common_flags}
     $<$<BOOL:${strict_compile}>:${strict_flags}>
     $<$<CONFIG:DEBUG>:${debug_flags}>
